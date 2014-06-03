@@ -114,9 +114,7 @@ namespace KeePass.Util
 					r = SessionLockReason.Lock;
 				else if(e.Reason == SessionSwitchReason.SessionLogoff)
 					r = SessionLockReason.Ending;
-				else if((e.Reason == SessionSwitchReason.SessionRemoteControl) ||
-					(e.Reason == SessionSwitchReason.RemoteConnect) ||
-					(e.Reason == SessionSwitchReason.RemoteDisconnect))
+				else if(e.Reason == SessionSwitchReason.SessionRemoteControl)
 					r = SessionLockReason.RemoteControlChange;
 
 				if(r != SessionLockReason.Unknown)

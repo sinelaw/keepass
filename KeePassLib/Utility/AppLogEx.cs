@@ -51,7 +51,7 @@ namespace KeePassLib.Utility
 				string strDirSep = string.Empty;
 				strDirSep += Path.DirectorySeparatorChar;
 
-				string strTemp = UrlUtil.GetTempPath();
+				string strTemp = Path.GetTempPath();
 				if(!strTemp.EndsWith(strDirSep))
 					strTemp += strDirSep;
 

@@ -201,8 +201,7 @@ namespace KeePass.Util
 
 		private static string GetMutexPath(string strName)
 		{
-			string strDir = UrlUtil.EnsureTerminatingSeparator(
-				UrlUtil.GetTempPath(), false);
+			string strDir = UrlUtil.EnsureTerminatingSeparator(Path.GetTempPath(), false);
 			return (strDir + IpcUtilEx.IpcMsgFilePreID + IpcBroadcast.GetUserID() +
 				"-Mutex-" + strName + ".tmp");
 		}

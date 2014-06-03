@@ -238,12 +238,9 @@ namespace KeePass.UI
 			if(NativeLib.IsUnix())
 			{
 				AddAppByFile(AppLocator.FindAppUnix("epiphany-browser"), @"&Epiphany");
+				AddAppByFile(AppLocator.FindAppUnix("arora"), @"&Arora");
 				AddAppByFile(AppLocator.FindAppUnix("galeon"), @"Ga&leon");
 				AddAppByFile(AppLocator.FindAppUnix("konqueror"), @"&Konqueror");
-				AddAppByFile(AppLocator.FindAppUnix("rekonq"), @"&Rekonq");
-				AddAppByFile(AppLocator.FindAppUnix("arora"), @"&Arora");
-				AddAppByFile(AppLocator.FindAppUnix("midori"), @"&Midori");
-				AddAppByFile(AppLocator.FindAppUnix("Dooble"), @"&Dooble"); // Upper-case
 			}
 		}
 
@@ -257,22 +254,22 @@ namespace KeePass.UI
 
 		private void FindAppsByRegistryPriv(string strRootSubKey)
 		{
-			RegistryKey kRoot = Registry.LocalMachine.OpenSubKey(strRootSubKey, false);
+			RegistryKey kRoot = Registry.LocalMachine.OpenSubKey(strRootSubKey);
 			if(kRoot == null) return; // No assert, key might not exist
 			string[] vAppSubKeys = kRoot.GetSubKeyNames();
 
 			foreach(string strAppSubKey in vAppSubKeys)
 			{
-				RegistryKey kApp = kRoot.OpenSubKey(strAppSubKey, false);
+				RegistryKey kApp = kRoot.OpenSubKey(strAppSubKey);
 				string strName = (kApp.GetValue(string.Empty) as string);
 				string strAltName = null;
 
-				RegistryKey kCmd = kApp.OpenSubKey("shell\\open\\command", false);
+				RegistryKey kCmd = kApp.OpenSubKey("shell\\open\\command");
 				if(kCmd == null) { Debug.Assert(false); kApp.Close(); continue; }
 				string strCmdLine = (kCmd.GetValue(string.Empty) as string);
 				kCmd.Close();
 
-				RegistryKey kCaps = kApp.OpenSubKey("Capabilities", false);
+				RegistryKey kCaps = kApp.OpenSubKey("Capabilities");
 				if(kCaps != null)
 				{
 					strAltName = (kCaps.GetValue("ApplicationName") as string);

@@ -379,7 +379,7 @@ namespace KeePass.Util
 				char chCur = char.ToUpper(strCur[0]);
 				if(chPar != chCur) return string.Empty;
 
-				string strTemp = UrlUtil.GetTempPath();
+				string strTemp = Path.GetTempPath();
 				WinUtil.SetWorkingDirectory(strTemp);
 
 				return strCur;

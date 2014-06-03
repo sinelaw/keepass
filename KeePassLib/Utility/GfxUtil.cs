@@ -54,28 +54,20 @@ namespace KeePassLib.Utility
 			{
 #if !KeePassLibSD
 				imgSrc = Image.FromStream(s);
-				Bitmap bmp = new Bitmap(imgSrc.Width, imgSrc.Height,
+				Image img = new Bitmap(imgSrc.Width, imgSrc.Height,
 					PixelFormat.Format32bppArgb);
-
-				try
-				{
-					bmp.SetResolution(imgSrc.HorizontalResolution,
-						imgSrc.VerticalResolution);
-					Debug.Assert(bmp.Size == imgSrc.Size);
-				}
-				catch(Exception) { Debug.Assert(false); }
 #else
 				imgSrc = new Bitmap(s);
-				Bitmap bmp = new Bitmap(imgSrc.Width, imgSrc.Height);
+				Image img = new Bitmap(imgSrc.Width, imgSrc.Height);
 #endif
 
-				using(Graphics g = Graphics.FromImage(bmp))
+				using(Graphics g = Graphics.FromImage(img))
 				{
 					g.Clear(Color.Transparent);
 					g.DrawImage(imgSrc, 0, 0);
 				}
 
-				return bmp;
+				return img;
 			}
 			finally { if(imgSrc != null) imgSrc.Dispose(); }
 		}

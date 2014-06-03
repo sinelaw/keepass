@@ -284,7 +284,7 @@ namespace KeePass
 				try
 				{
 					string strFileOut = UrlUtil.EnsureTerminatingSeparator(
-						UrlUtil.GetTempPath(), false) + "KeePass_UrlOverride.tmp";
+						Path.GetTempPath(), false) + "KeePass_UrlOverride.tmp";
 					string strContent = ("[KeePass]\r\nKeeURLOverride=" +
 						Program.Config.Integration.UrlOverride + "\r\n");
 					File.WriteAllText(strFileOut, strContent);
