@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,10 +29,10 @@ namespace KeePassLib.Cryptography
 	/// <summary>
 	/// Return values of the <c>SelfTest.Perform</c> method.
 	/// </summary>
-	public enum SelfTestResult : uint
+	public enum SelfTestResult
 	{
 		Success = 0,
-		RijndaelEcbError
+		RijndaelEcbError = 1
 	}
 #pragma warning restore 1591
 

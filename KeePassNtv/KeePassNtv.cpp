@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 */
 
 #ifdef _WIN32_WCE
-#include "../KeePassNtvSD/StdAfx.h"
+#include "../KeePassSD/KeePassNtv/StdAfx.h"
 #else
 #include "StdAfx.h"
 #endif

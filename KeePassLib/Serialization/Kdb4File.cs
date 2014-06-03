@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ using System.Collections.Generic;
 using System.Xml;
 using System.Text;
 using System.Diagnostics;
+using System.Globalization;
 
 #if !KeePassLibSD
 using System.IO.Compression;
@@ -83,6 +84,8 @@ namespace KeePassLib.Serialization
 		private const string ElemDbDesc = "DatabaseDescription";
 		private const string ElemDbDefaultUser = "DefaultUserName";
 		private const string ElemDbMntncHistoryDays = "MaintenanceHistoryDays";
+		private const string ElemLastSelectedGroup = "LastSelectedGroup";
+		private const string ElemLastTopVisibleGroup = "LastTopVisibleGroup";
 
 		private const string ElemMemoryProt = "MemoryProtection";
 		private const string ElemProtTitle = "ProtectTitle";
@@ -101,6 +104,7 @@ namespace KeePassLib.Serialization
 		private const string ElemHistory = "History";
 
 		private const string ElemName = "Name";
+		private const string ElemNotes = "Notes";
 		private const string ElemUuid = "UUID";
 		private const string ElemIcon = "IconID";
 		private const string ElemCustomIconID = "CustomIconUUID";
@@ -133,6 +137,7 @@ namespace KeePassLib.Serialization
 		private const string AttrProtected = "Protected";
 
 		private const string ElemIsExpanded = "IsExpanded";
+		private const string ElemLastTopVisibleEntry = "LastTopVisibleEntry";
 
 		private const string ElemDeletedObjects = "DeletedObjects";
 		private const string ElemDeletedObject = "DeletedObject";
@@ -153,6 +158,8 @@ namespace KeePassLib.Serialization
 		private byte[] m_pbEncryptionIV = null;
 		private byte[] m_pbProtectedStreamKey = null;
 		private byte[] m_pbStreamStartBytes = null;
+
+		private byte[] m_pbHashOfFileOnDisk = null;
 
 		private readonly DateTime m_dtNow = DateTime.Now; // Cache current time
 
@@ -175,6 +182,11 @@ namespace KeePassLib.Serialization
 			StreamStartBytes
 		}
 
+		public byte[] HashOfFileOnDisk
+		{
+			get { return m_pbHashOfFileOnDisk; }
+		}
+
 		/// <summary>
 		/// Default constructor.
 		/// </summary>
@@ -191,7 +203,7 @@ namespace KeePassLib.Serialization
 		/// <summary>
 		/// Call this once to determine the current localization settings.
 		/// </summary>
-		public static void DetermineLanguageID()
+		public static void DetermineLanguageId()
 		{
 			// Test if localized names should be used. If localized names are used,
 			// the m_bLocalizedNames value must be set to true. By default, localized

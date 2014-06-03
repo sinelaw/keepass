@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,12 +25,14 @@ using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
 using System.Diagnostics;
+using System.Threading;
 
 using KeePass.App;
 using KeePass.UI;
 using KeePass.Resources;
 
 using KeePassLib;
+using KeePassLib.Delegates;
 using KeePassLib.Security;
 using KeePassLib.Collections;
 
@@ -43,10 +45,14 @@ namespace KeePass.Forms
 		private ProtectedString m_psStringValue = null;
 		private Color m_clrNormalBackground;
 		private RichTextBoxContextMenu m_ctxValue = new RichTextBoxContextMenu();
+		private PwDatabase m_pwContext = null;
+
+		private volatile List<string> m_vSuggestedNames = new List<string>();
 
 		public EditStringForm()
 		{
 			InitializeComponent();
+			Program.Translation.ApplyTo(this);
 		}
 
 		/// <summary>
@@ -55,18 +61,21 @@ namespace KeePass.Forms
 		/// <param name="vStringDict">String container. Must not be <c>null</c>.</param>
 		/// <param name="strStringName">Initial name of the string. May be <c>null</c>.</param>
 		/// <param name="psStringValue">Initial value. May be <c>null</c>.</param>
-		public void InitEx(ProtectedStringDictionary vStringDict, string strStringName, ProtectedString psStringValue)
+		public void InitEx(ProtectedStringDictionary vStringDict, string strStringName,
+			ProtectedString psStringValue, PwDatabase pwContext)
 		{
-			Debug.Assert(vStringDict != null); if(vStringDict == null) throw new ArgumentNullException();
+			Debug.Assert(vStringDict != null); if(vStringDict == null) throw new ArgumentNullException("vStringDict");
 			m_vStringDict = vStringDict;
 
 			m_strStringName = strStringName;
 			m_psStringValue = psStringValue;
+
+			m_pwContext = pwContext;
 		}
 
 		private void OnFormLoad(object sender, EventArgs e)
 		{
-			Debug.Assert(m_vStringDict != null); if(m_vStringDict == null) throw new ArgumentNullException();
+			Debug.Assert(m_vStringDict != null); if(m_vStringDict == null) throw new InvalidOperationException();
 
 			GlobalWindowManager.AddWindow(this);
 
@@ -85,13 +94,15 @@ namespace KeePass.Forms
 			}
 
 			m_bannerImage.Image = BannerFactory.CreateBanner(m_bannerImage.Width,
-				m_bannerImage.Height, BannerFactory.BannerStyle.Default,
+				m_bannerImage.Height, BannerStyle.Default,
 				Properties.Resources.B48x48_Font, strTitle, strDesc);
 			this.Icon = Properties.Resources.KeePass;
 
-			m_clrNormalBackground = m_tbStringName.BackColor;
+			m_clrNormalBackground = m_cmbStringName.BackColor;
 
-			if(m_strStringName != null) m_tbStringName.Text = m_strStringName;
+			UIUtil.PrepareStandardMultilineControl(m_richStringValue);
+
+			if(m_strStringName != null) m_cmbStringName.Text = m_strStringName;
 			if(m_psStringValue != null)
 			{
 				m_richStringValue.Text = m_psStringValue.ReadString();
@@ -99,52 +110,78 @@ namespace KeePass.Forms
 			}
 
 			ValidateStringName();
-			m_tbStringName.Focus();
+
+			PopulateNamesComboBox();
+
+			m_cmbStringName.Focus();
+		}
+
+		private bool ValidateStringNameEx(string str)
+		{
+			if(str == null) { Debug.Assert(false); return false; }
+
+			if(PwDefs.IsStandardField(str)) return false;
+			if(str.Length <= 0) return false;
+
+			char[] vInvalidChars = new char[] { '{', '}' };
+			if(str.IndexOfAny(vInvalidChars) >= 0) return false;
+
+			string strStart = (m_strStringName != null) ? m_strStringName : string.Empty;
+			if(!strStart.Equals(str) && m_vStringDict.Exists(str)) return false;
+			// See ValidateStringName
+
+			return true;
 		}
 
 		private bool ValidateStringName()
 		{
-			string str = m_tbStringName.Text;
-			string strStart = (m_strStringName != null) ? m_strStringName : "";
+			string str = m_cmbStringName.Text;
+			string strStart = (m_strStringName != null) ? m_strStringName : string.Empty;
 			char[] vInvalidChars = new char[]{ '{', '}' };
 
 			if(PwDefs.IsStandardField(str))
 			{
 				m_lblValidationInfo.Text = KPRes.FieldNameInvalid;
-				m_tbStringName.BackColor = AppDefs.ColorEditError;
+				m_cmbStringName.BackColor = AppDefs.ColorEditError;
 				m_btnOK.Enabled = false;
-
 				return false;
 			}
-			else if((str.Length <= 0) || (str.IndexOfAny(vInvalidChars) >= 0))
+			else if(str.Length <= 0)
+			{
+				m_lblValidationInfo.Text = KPRes.FieldNamePrompt;
+				m_cmbStringName.BackColor = m_clrNormalBackground;
+				m_btnOK.Enabled = false;
+				return false;
+
+			}
+			else if(str.IndexOfAny(vInvalidChars) >= 0)
 			{
 				m_lblValidationInfo.Text = KPRes.FieldNameInvalid;
-				m_tbStringName.BackColor = AppDefs.ColorEditError;
+				m_cmbStringName.BackColor = AppDefs.ColorEditError;
 				m_btnOK.Enabled = false;
-
 				return false;
 			}
 			else if(!strStart.Equals(str) && m_vStringDict.Exists(str))
 			{
 				m_lblValidationInfo.Text = KPRes.FieldNameExistsAlready;
-				m_tbStringName.BackColor = AppDefs.ColorEditError;
+				m_cmbStringName.BackColor = AppDefs.ColorEditError;
 				m_btnOK.Enabled = false;
-
 				return false;
 			}
 			else
 			{
-				m_lblValidationInfo.Text = "";
-				m_tbStringName.BackColor = m_clrNormalBackground;
+				m_lblValidationInfo.Text = string.Empty;
+				m_cmbStringName.BackColor = m_clrNormalBackground;
 				m_btnOK.Enabled = true;
 			}
+			// See ValidateStringNameEx
 
 			return true;
 		}
 
 		private void OnBtnOK(object sender, EventArgs e)
 		{
-			string strName = m_tbStringName.Text;
+			string strName = m_cmbStringName.Text;
 
 			if(!ValidateStringName())
 			{
@@ -196,19 +233,71 @@ namespace KeePass.Forms
 			m_ctxValue.Detach();
 		}
 
+		private void PopulateNamesComboBox()
+		{
+			ThreadStart ts = new ThreadStart(this.PopulateNamesCollectFunc);
+			Thread th = new Thread(ts);
+			th.Start();
+		}
+
+		private void PopulateNamesCollectFunc()
+		{
+			if(m_pwContext == null) { Debug.Assert(false); return; }
+
+			EntryHandler eh = delegate(PwEntry pe)
+			{
+				if(pe == null) { Debug.Assert(false); return true; }
+
+				foreach(KeyValuePair<string, ProtectedString> kvp in pe.Strings)
+				{
+					if(ValidateStringNameEx(kvp.Key) &&
+						!m_vSuggestedNames.Contains(kvp.Key))
+					{
+						m_vSuggestedNames.Add(kvp.Key);
+					}
+				}
+
+				return true;
+			};
+
+			m_pwContext.RootGroup.TraverseTree(TraversalMethod.PreOrder, null, eh);
+
+			m_vSuggestedNames.Sort();
+
+			if(m_cmbStringName.InvokeRequired)
+				m_cmbStringName.Invoke(new Priv_PnFnVoid(this.PopulateNamesAddFunc));
+			else this.PopulateNamesAddFunc();
+		}
+
+		public delegate void Priv_PnFnVoid();
+
+		private void PopulateNamesAddFunc()
+		{
+			foreach(string str in m_vSuggestedNames)
+				m_cmbStringName.Items.Add(str);
+		}
+
 		private void OnBtnHelp(object sender, EventArgs e)
 		{
 			AppHelp.ShowHelp(AppDefs.HelpTopics.Entry, AppDefs.HelpTopics.EntryStrings);
 		}
 
-		private void OnTextChangedName(object sender, EventArgs e)
+		private void OnFormClosed(object sender, FormClosedEventArgs e)
+		{
+			GlobalWindowManager.RemoveWindow(this);
+		}
+
+		private void OnNameTextChanged(object sender, EventArgs e)
 		{
 			ValidateStringName();
 		}
 
-		private void OnFormClosed(object sender, FormClosedEventArgs e)
+		protected override bool ProcessDialogKey(Keys keyData)
 		{
-			GlobalWindowManager.RemoveWindow(this);
+			if(((keyData == Keys.Return) || (keyData == Keys.Enter)) && m_richStringValue.Focused)
+				return false; // Forward to RichTextBox
+
+			return base.ProcessDialogKey(keyData);
 		}
 	}
 }

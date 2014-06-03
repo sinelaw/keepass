@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,39 +21,82 @@ using System;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.ComponentModel;
 using System.Text;
 using System.Windows.Forms;
 using System.Drawing;
 using System.IO;
+using System.Security.Cryptography;
 
 using KeePass.App;
 using KeePass.Native;
+using KeePass.Resources;
+using KeePass.Util.Spr;
 
 using KeePassLib;
+using KeePassLib.Serialization;
 using KeePassLib.Utility;
 
 namespace KeePass.Util
 {
 	public static class WinUtil
 	{
+		private static bool m_bIsWindows9x = false;
+		private static bool m_bIsWindows2000 = false;
+		private static bool m_bIsWindowsXP = false;
+		private static bool m_bIsAtLeastWindowsVista = false;
+
+		private const int ERROR_ACCESS_DENIED = 5;
+
+		public static bool IsWindows9x
+		{
+			get { return m_bIsWindows9x; }
+		}
+
+		public static bool IsWindows2000
+		{
+			get { return m_bIsWindows2000; }
+		}
+
+		public static bool IsWindowsXP
+		{
+			get { return m_bIsWindowsXP; }
+		}
+
+		public static bool IsAtLeastWindowsVista
+		{
+			get { return m_bIsAtLeastWindowsVista; }
+		}
+
+		static WinUtil()
+		{
+			OperatingSystem os = Environment.OSVersion;
+			Version v = os.Version;
+
+			m_bIsWindows9x = (os.Platform == PlatformID.Win32Windows);
+			m_bIsWindows2000 = ((v.Major == 5) && (v.Minor == 0));
+			m_bIsWindowsXP = ((v.Major == 5) && (v.Minor == 1));
+			m_bIsAtLeastWindowsVista = (v.Major >= 6);
+		}
+
 		public static void OpenEntryUrl(PwEntry pe)
 		{
 			Debug.Assert(pe != null);
 			if(pe == null) throw new ArgumentNullException("pe");
 
 			if(pe.OverrideUrl.Length > 0)
-				WinUtil.OpenUrlInNewBrowser(pe.OverrideUrl, pe);
+				WinUtil.OpenUrl(pe.OverrideUrl, pe);
 			else
 			{
-				string strOverride = AppConfigEx.GetValue(AppDefs.ConfigKeys.UrlOverride);
+				string strOverride = Program.Config.Integration.UrlOverride;
 				if(strOverride.Length > 0)
-					WinUtil.OpenUrlInNewBrowser(strOverride, pe);
+					WinUtil.OpenUrl(strOverride, pe);
 				else
-					WinUtil.OpenUrlInNewBrowser(pe.Strings.ReadSafe(PwDefs.UrlField), pe);
+					WinUtil.OpenUrl(pe.Strings.ReadSafe(PwDefs.UrlField), pe);
 			}
 		}
 
-		public static void OpenUrlInNewBrowser(string strUrlToOpen, PwEntry peDataSource)
+		public static void OpenUrl(string strUrlToOpen, PwEntry peDataSource)
 		{
 			// If URL is null, return false, do not throw exception.
 			Debug.Assert(strUrlToOpen != null); if(strUrlToOpen == null) return;
@@ -66,20 +109,22 @@ namespace KeePass.Util
 			catch(Exception) { Debug.Assert(false); }
 
 			string strUrl = strUrlToOpen;
-			bool bCmdQuotes = strUrl.StartsWith("cmd://");
+			strUrl = strUrl.TrimStart(new char[]{ ' ', '\t', '\r', '\n' });
 
 			PwDatabase pwDatabase = null;
 			try { pwDatabase = Program.MainForm.PluginHost.Database; }
 			catch(Exception) { Debug.Assert(false); pwDatabase = null; }
 
-			strUrl = StrUtil.FillPlaceholders(strUrl, peDataSource, strThisExe,
-				pwDatabase, bCmdQuotes, false);
-			strUrl = AppLocator.FillPlaceholders(strUrl, false);
+			bool bCmdQuotes = WinUtil.IsCommandLineUrl(strUrl);
 
-			if(strUrl.StartsWith("cmd://"))
+			strUrl = SprEngine.Compile(strUrl, false, peDataSource, pwDatabase,
+				false, bCmdQuotes);
+
+			if(WinUtil.IsCommandLineUrl(strUrl))
 			{
 				string strApp, strArgs;
-				StrUtil.SplitCommandLine(strUrl.Remove(0, 6), out strApp, out strArgs);
+				StrUtil.SplitCommandLine(WinUtil.GetCommandLineFromUrl(strUrl),
+					out strApp, out strArgs);
 
 				try
 				{
@@ -88,12 +133,17 @@ namespace KeePass.Util
 					else
 						Process.Start(strApp);
 				}
+				catch(Win32Exception)
+				{
+					StartWithoutShellExecute(strApp, strArgs);
+				}
 				catch(Exception exCmd)
 				{
-					string strInf = strApp;
+					string strInf = KPRes.FileOrUrl + ": " + strApp;
 					if((strArgs != null) && (strArgs.Length > 0))
-						strInf += MessageService.NewLine + strArgs;
-					
+						strInf += MessageService.NewParagraph +
+							KPRes.Arguments + ": " + strArgs;
+
 					MessageService.ShowWarning(strInf, exCmd);
 				}
 			}
@@ -109,6 +159,32 @@ namespace KeePass.Util
 			// Restore previous working directory
 			try { Directory.SetCurrentDirectory(strPrevWorkDir); }
 			catch(Exception) { Debug.Assert(false); }
+		}
+
+		private static void StartWithoutShellExecute(string strApp, string strArgs)
+		{
+			try
+			{
+				ProcessStartInfo psi = new ProcessStartInfo();
+
+				psi.FileName = strApp;
+
+				if((strArgs != null) && (strArgs.Length > 0))
+					psi.Arguments = strArgs;
+
+				psi.UseShellExecute = false;
+
+				Process.Start(psi);
+			}
+			catch(Exception exCmd)
+			{
+				string strInf = KPRes.FileOrUrl + ": " + strApp;
+				if((strArgs != null) && (strArgs.Length > 0))
+					strInf += MessageService.NewParagraph +
+						KPRes.Arguments + ": " + strArgs;
+
+				MessageService.ShowWarning(strInf, exCmd);
+			}
 		}
 
 		public static void Restart()
@@ -136,8 +212,8 @@ namespace KeePass.Util
 			return strExePath;
 		}
 
-		private const string FontPartsSeparator = @"/:/";
-
+		/* private const string FontPartsSeparator = @"/:/";
+		
 		public static Font FontIDToFont(string strFontID)
 		{
 			Debug.Assert(strFontID != null); if(strFontID == null) return null;
@@ -177,7 +253,7 @@ namespace KeePass.Util
 			sb.Append(f.Strikeout ? "1" : "0");
 
 			return sb.ToString();
-		}
+		} */
 
 		/// <summary>
 		/// Shorten a path.
@@ -211,6 +287,159 @@ namespace KeePass.Util
 			catch(Exception) { Debug.Assert(false); }
 
 			return StrUtil.CompactString3Dots(strPath, nMaxChars);
+		}
+
+		public static bool FlushStorageBuffers(char chDriveLetter, bool bOnlyIfRemovable)
+		{
+			string strDriveLetter = new string(chDriveLetter, 1);
+			bool bResult = true;
+
+			try
+			{
+				if(bOnlyIfRemovable)
+				{
+					DriveInfo di = new DriveInfo(strDriveLetter);
+					if(di.DriveType != DriveType.Removable) return true;
+				}
+
+				string strDevice = "\\\\.\\" + strDriveLetter + ":";
+
+				IntPtr hDevice = NativeMethods.CreateFile(strDevice,
+					NativeMethods.EFileAccess.GenericRead | NativeMethods.EFileAccess.GenericWrite,
+					NativeMethods.EFileShare.Read | NativeMethods.EFileShare.Write,
+					IntPtr.Zero, NativeMethods.ECreationDisposition.OpenExisting,
+					0, IntPtr.Zero);
+				if(NativeMethods.IsInvalidHandleValue(hDevice))
+				{
+					Debug.Assert(false);
+					return false;
+				}
+
+				string strDir = FreeDriveIfCurrent(chDriveLetter);
+
+				uint dwDummy;
+				if(NativeMethods.DeviceIoControl(hDevice, NativeMethods.FSCTL_LOCK_VOLUME,
+					IntPtr.Zero, 0, IntPtr.Zero, 0, out dwDummy, IntPtr.Zero) != false)
+				{
+					if(NativeMethods.DeviceIoControl(hDevice, NativeMethods.FSCTL_UNLOCK_VOLUME,
+						IntPtr.Zero, 0, IntPtr.Zero, 0, out dwDummy, IntPtr.Zero) == false)
+					{
+						Debug.Assert(false);
+					}
+				}
+				else bResult = false;
+
+				if(strDir.Length > 0) Directory.SetCurrentDirectory(strDir);
+
+				if(!NativeMethods.CloseHandle(hDevice)) { Debug.Assert(false); }
+			}
+			catch(Exception)
+			{
+				Debug.Assert(false);
+				return false;
+			}
+
+			return bResult;
+		}
+
+		public static bool FlushStorageBuffers(string strFileOnStorage, bool bOnlyIfRemovable)
+		{
+			if(strFileOnStorage == null) { Debug.Assert(false); return false; }
+			if(strFileOnStorage.Length < 3) return false;
+			if(strFileOnStorage[1] != ':') return false;
+			if(strFileOnStorage[2] != '\\') return false;
+
+			return FlushStorageBuffers(char.ToUpper(strFileOnStorage[0]), bOnlyIfRemovable);
+		}
+
+		private static string FreeDriveIfCurrent(char chDriveLetter)
+		{
+			try
+			{
+				string strCur = Directory.GetCurrentDirectory();
+				if((strCur == null) || (strCur.Length < 3)) return string.Empty;
+				if(strCur[1] != ':') return string.Empty;
+				if(strCur[2] != '\\') return string.Empty;
+
+				char chPar = char.ToUpper(chDriveLetter);
+				char chCur = char.ToUpper(strCur[0]);
+				if(chPar != chCur) return string.Empty;
+
+				string strTemp = Path.GetTempPath();
+				Directory.SetCurrentDirectory(strTemp);
+
+				return strCur;
+			}
+			catch(Exception) { Debug.Assert(false); }
+
+			return string.Empty;
+		}
+
+		private static readonly string[] m_vIE7Windows = new string[] {
+			"Windows Internet Explorer", "Maxthon"
+		};
+
+		public static bool IsInternetExplorer7Window(string strWindowTitle)
+		{
+			if(strWindowTitle == null) return false; // No assert or throw
+			if(strWindowTitle.Length == 0) return false; // No assert or throw
+
+			foreach(string str in m_vIE7Windows)
+			{
+				if(strWindowTitle.IndexOf(str) >= 0) return true;
+			}
+
+			return false;
+		}
+
+		public static byte[] HashFile(IOConnectionInfo iocFile)
+		{
+			if(iocFile == null) { Debug.Assert(false); return null; } // Assert only
+
+			Stream sIn;
+			try
+			{
+				sIn = IOConnection.OpenRead(iocFile);
+				if(sIn == null) throw new FileNotFoundException();
+			}
+			catch(Exception) { return null; }
+
+			byte[] pbHash;
+			try
+			{
+				SHA256Managed sha256 = new SHA256Managed();
+				pbHash = sha256.ComputeHash(sIn);
+			}
+			catch(Exception) { Debug.Assert(false); sIn.Close(); return null; }
+
+			sIn.Close();
+			return pbHash;
+		}
+
+		// See GetCommandLineFromUrl when editing this method
+		public static bool IsCommandLineUrl(string strUrl)
+		{
+			if(strUrl == null) { Debug.Assert(false); return false; }
+
+			string strLower = strUrl.ToLower();
+
+			if(strLower.StartsWith("cmd://")) return true;
+			if(strLower.StartsWith("\\\\")) return true; // UNC path support
+
+			return false;
+		}
+
+		// See IsCommandLineUrl when editing this method
+		public static string GetCommandLineFromUrl(string strUrl)
+		{
+			if(strUrl == null) { Debug.Assert(false); return string.Empty; }
+
+			string strLower = strUrl.ToLower();
+
+			if(strLower.StartsWith("cmd://")) return strUrl.Remove(0, 6);
+			if(strLower.StartsWith("\\\\")) return strUrl; // UNC path support
+
+			return strUrl;
 		}
 	}
 }

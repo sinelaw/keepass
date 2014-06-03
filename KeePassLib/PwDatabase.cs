@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -66,6 +66,12 @@ namespace KeePassLib
 		private bool m_bDatabaseOpened = false;
 		private bool m_bModified = false;
 
+		private PwUuid m_pwLastSelectedGroup = PwUuid.Zero;
+		private PwUuid m_pwLastTopVisibleGroup = PwUuid.Zero;
+
+		private byte[] m_pbHashOfFileOnDisk = null;
+		private byte[] m_pbHashOfLastIO = null;
+
 		private static string m_strLocalizedAppName = string.Empty;
 
 		/// <summary>
@@ -123,7 +129,7 @@ namespace KeePassLib
 			get { return m_pwUserKey; }
 			set
 			{
-				Debug.Assert(value != null); if(value == null) throw new ArgumentNullException();
+				Debug.Assert(value != null); if(value == null) throw new ArgumentNullException("value");
 
 				m_pwUserKey = value;
 			}
@@ -218,7 +224,7 @@ namespace KeePassLib
 			get { return m_memProtConfig; }
 			set
 			{
-				Debug.Assert(value != null); if(value == null) throw new ArgumentNullException();
+				Debug.Assert(value != null); if(value == null) throw new ArgumentNullException("value");
 				
 				m_memProtConfig = value;
 			}
@@ -248,6 +254,41 @@ namespace KeePassLib
 		{
 			get { return m_bUINeedsIconUpdate; }
 			set { m_bUINeedsIconUpdate = value; }
+		}
+
+		public PwUuid LastSelectedGroup
+		{
+			get { return m_pwLastSelectedGroup; }
+			set
+			{
+				Debug.Assert(value != null); if(value == null) throw new ArgumentNullException("value");
+				m_pwLastSelectedGroup = value;
+			}
+		}
+
+		public PwUuid LastTopVisibleGroup
+		{
+			get { return m_pwLastTopVisibleGroup; }
+			set
+			{
+				Debug.Assert(value != null); if(value == null) throw new ArgumentNullException("value");
+				m_pwLastTopVisibleGroup = value;
+			}
+		}
+
+		/// <summary>
+		/// Hash value of the primary file on disk (last read or last write).
+		/// A call to <c>SaveAs</c> without making the saved file primary will
+		/// not change this hash. May be <c>null</c>.
+		/// </summary>
+		public byte[] HashOfFileOnDisk
+		{
+			get { return m_pbHashOfFileOnDisk; }
+		}
+
+		public byte[] HashOfLastIO
+		{
+			get { return m_pbHashOfLastIO; }
 		}
 
 		/// <summary>
@@ -296,6 +337,12 @@ namespace KeePassLib
 			m_ioSource = new IOConnectionInfo();
 			m_bDatabaseOpened = false;
 			m_bModified = false;
+
+			m_pwLastSelectedGroup = PwUuid.Zero;
+			m_pwLastTopVisibleGroup = PwUuid.Zero;
+
+			m_pbHashOfFileOnDisk = null;
+			m_pbHashOfLastIO = null;
 		}
 
 		/// <summary>
@@ -320,7 +367,7 @@ namespace KeePassLib
 			m_bModified = true;
 
 			m_pgRootGroup = new PwGroup(true, true,
-				UrlUtil.StripExtension(UrlUtil.GetFileName(ioConnection.Url)),
+				UrlUtil.StripExtension(UrlUtil.GetFileName(ioConnection.Path)),
 				PwIcon.FolderOpen);
 			m_pgRootGroup.IsExpanded = true;
 		}
@@ -344,7 +391,7 @@ namespace KeePassLib
 			try
 			{
 				m_pgRootGroup = new PwGroup(true, true, UrlUtil.StripExtension(
-					UrlUtil.GetFileName(ioSource.Url)), PwIcon.FolderOpen);
+					UrlUtil.GetFileName(ioSource.Path)), PwIcon.FolderOpen);
 				m_pgRootGroup.IsExpanded = true;
 
 				m_pwUserKey = pwKey;
@@ -355,6 +402,10 @@ namespace KeePassLib
 				Stream s = IOConnection.OpenRead(ioSource);
 				kdb4.Load(s, Kdb4Format.Default, slLogger);
 				s.Close();
+
+				m_pbHashOfLastIO = kdb4.HashOfFileOnDisk;
+				m_pbHashOfFileOnDisk = kdb4.HashOfFileOnDisk;
+				Debug.Assert(m_pbHashOfFileOnDisk != null);
 
 				m_bDatabaseOpened = true;
 				m_ioSource = ioSource;
@@ -373,10 +424,18 @@ namespace KeePassLib
 		/// <param name="slLogger">Logger that recieves status information.</param>
 		public void Save(IStatusLogger slLogger)
 		{
-			Kdb4File kdb = new Kdb4File(this);
+			bool bMadeUnhidden = UrlUtil.UnhideFile(m_ioSource.Path);
 
 			Stream s = IOConnection.OpenWrite(m_ioSource);
-			kdb.Save(s, Kdb4Format.Default, slLogger);
+
+			Kdb4File kdb = new Kdb4File(this);
+			kdb.Save(s, null, Kdb4Format.Default, slLogger);
+
+			if(bMadeUnhidden) UrlUtil.HideFile(m_ioSource.Path, true); // Hide again
+
+			m_pbHashOfLastIO = kdb.HashOfFileOnDisk;
+			m_pbHashOfFileOnDisk = kdb.HashOfFileOnDisk;
+			Debug.Assert(m_pbHashOfFileOnDisk != null);
 
 			m_bModified = false;
 		}
@@ -403,14 +462,23 @@ namespace KeePassLib
 			IOConnectionInfo ioCurrent = m_ioSource; // Remember current
 			m_ioSource = ioConnection;
 
+			byte[] pbHashCopy = m_pbHashOfFileOnDisk;
+
 			try { this.Save(slLogger); }
 			catch(Exception)
 			{
-				m_ioSource = ioCurrent;
+				m_ioSource = ioCurrent; // Restore
+				m_pbHashOfFileOnDisk = pbHashCopy;
+
+				m_pbHashOfLastIO = null;
 				throw;
 			}
 
-			if(!bIsPrimaryNow) m_ioSource = ioCurrent;
+			if(!bIsPrimaryNow)
+			{
+				m_ioSource = ioCurrent; // Restore
+				m_pbHashOfFileOnDisk = pbHashCopy;
+			}
 		}
 
 		/// <summary>
@@ -419,7 +487,7 @@ namespace KeePassLib
 		/// </summary>
 		public void Close()
 		{
-			this.Clear();
+			Clear();
 		}
 
 		/// <summary>
@@ -455,9 +523,8 @@ namespace KeePassLib
 
 					PwGroup pgNew = new PwGroup();
 					pgNew.Uuid = pg.Uuid;
-					pgNew.ParentGroup = pgLocalContainer;
 					pgNew.AssignProperties(pg, false);
-					pgLocalContainer.Groups.Add(pgNew);
+					pgLocalContainer.AddGroup(pgNew, true);
 				}
 				else // pgLocal != null
 				{
@@ -489,11 +556,10 @@ namespace KeePassLib
 						pgLocalContainer = m_pgRootGroup.FindGroup(pgSourceParent.Uuid, true);
 					Debug.Assert(pgLocalContainer != null);
 
-					PwEntry peNew = new PwEntry(null, false, false);
+					PwEntry peNew = new PwEntry(false, false);
 					peNew.Uuid = pe.Uuid;
-					peNew.ParentGroup = pgLocalContainer;
 					peNew.AssignProperties(pe, false, true);
-					pgLocalContainer.Entries.Add(peNew);
+					pgLocalContainer.AddEntry(peNew, true);
 				}
 				else // peLocal == null
 				{
@@ -517,8 +583,8 @@ namespace KeePassLib
 
 			if(mm == PwMergeMethod.Synchronize)
 			{
-				ApplyDeletions(pwSource.m_vDeletedObjects);
-				ApplyDeletions(m_vDeletedObjects);
+				ApplyDeletions(pwSource.m_vDeletedObjects, true);
+				ApplyDeletions(m_vDeletedObjects, false);
 			}
 		}
 
@@ -526,9 +592,10 @@ namespace KeePassLib
 		/// Apply a list of deleted objects.
 		/// </summary>
 		/// <param name="listDelObjects">List of deleted objects.</param>
-		private void ApplyDeletions(PwObjectList<PwDeletedObject> listDelObjects)
+		private void ApplyDeletions(PwObjectList<PwDeletedObject> listDelObjects,
+			bool bCopyDeletionInfoToLocal)
 		{
-			Debug.Assert(listDelObjects != null); if(listDelObjects == null) throw new ArgumentNullException();
+			Debug.Assert(listDelObjects != null); if(listDelObjects == null) throw new ArgumentNullException("listDelObjects");
 
 			LinkedList<PwGroup> listGroupsToDelete = new LinkedList<PwGroup>();
 			LinkedList<PwEntry> listEntriesToDelete = new LinkedList<PwEntry>();
@@ -565,6 +632,29 @@ namespace KeePassLib
 				pg.ParentGroup.Groups.Remove(pg);
 			foreach(PwEntry pe in listEntriesToDelete)
 				pe.ParentGroup.Entries.Remove(pe);
+
+			if(bCopyDeletionInfoToLocal)
+			{
+				foreach(PwDeletedObject pdoNew in listDelObjects)
+				{
+					bool bCopy = true;
+
+					foreach(PwDeletedObject pdoLocal in m_vDeletedObjects)
+					{
+						if(pdoNew.Uuid.EqualsValue(pdoLocal.Uuid))
+						{
+							bCopy = false;
+
+							if(pdoNew.DeletionTime > pdoLocal.DeletionTime)
+								pdoLocal.DeletionTime = pdoNew.DeletionTime;
+
+							break;
+						}
+					}
+
+					if(bCopy) m_vDeletedObjects.Add(pdoNew);
+				}
+			}
 		}
 
 		/// <summary>
@@ -584,21 +674,21 @@ namespace KeePassLib
 		/// <summary>
 		/// Get the index of a custom icon.
 		/// </summary>
-		/// <param name="pwIconID">ID of the icon.</param>
+		/// <param name="pwIconId">ID of the icon.</param>
 		/// <returns>Index of the icon.</returns>
-		public int GetCustomIconIndex(PwUuid pwIconID)
+		public int GetCustomIconIndex(PwUuid pwIconId)
 		{
 			int nIndex = 0;
 
 			foreach(PwCustomIcon pwci in m_vCustomIcons)
 			{
-				if(pwci.Uuid.EqualsValue(pwIconID))
+				if(pwci.Uuid.EqualsValue(pwIconId))
 					return nIndex;
 
 				++nIndex;
 			}
 
-			Debug.Assert(false);
+			// Debug.Assert(false); // Do not assert
 			return -1;
 		}
 
@@ -606,14 +696,54 @@ namespace KeePassLib
 		/// Get a custom icon. This function can return <c>null</c>, if
 		/// no cached image of the icon is available.
 		/// </summary>
-		/// <param name="pwIconID">ID of the icon.</param>
+		/// <param name="pwIconId">ID of the icon.</param>
 		/// <returns>Image data.</returns>
-		public Image GetCustomIcon(PwUuid pwIconID)
+		public Image GetCustomIcon(PwUuid pwIconId)
 		{
-			int nIndex = GetCustomIconIndex(pwIconID);
+			int nIndex = GetCustomIconIndex(pwIconId);
 
 			if(nIndex >= 0) return m_vCustomIcons[nIndex].Image;
 			else { Debug.Assert(false); return null; }
+		}
+
+		public bool DeleteCustomIcons(List<PwUuid> vUuidsToDelete)
+		{
+			Debug.Assert(vUuidsToDelete != null);
+			if(vUuidsToDelete == null) throw new ArgumentNullException("vUuidsToDelete");
+			if(vUuidsToDelete.Count <= 0) return true;
+
+			EntryHandler eh = delegate(PwEntry pe)
+			{
+				PwUuid uuidThis = pe.CustomIconUuid;
+
+				if(uuidThis == PwUuid.Zero) return true;
+
+				foreach(PwUuid uuidDelete in vUuidsToDelete)
+				{
+					if(uuidThis.EqualsValue(uuidDelete))
+					{
+						pe.CustomIconUuid = PwUuid.Zero;
+						break;
+					}
+				}
+
+				return true;
+			};
+
+			if(!m_pgRootGroup.TraverseTree(TraversalMethod.PreOrder, null, eh))
+			{
+				Debug.Assert(false);
+				return false;
+			}
+
+			foreach(PwUuid pwUuid in vUuidsToDelete)
+			{
+				int nIndex = GetCustomIconIndex(pwUuid);
+
+				if(nIndex >= 0) m_vCustomIcons.RemoveAt(nIndex);
+			}
+
+			return true;
 		}
 	}
 }

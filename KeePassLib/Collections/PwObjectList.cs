@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,11 +27,11 @@ using KeePassLib.Interfaces;
 namespace KeePassLib.Collections
 {
 	/// <summary>
-	/// List of objects that implement <c>IDeepClonable</c> and cannot be <c>null</c>.
+	/// List of objects that implement <c>IDeepClonable</c> and <c>IPwTreeItem</c>,
+	/// and cannot be <c>null</c>.
 	/// </summary>
 	/// <typeparam name="T">Type specifier.</typeparam>
-	public sealed class PwObjectList<T> :
-		IEnumerable<T>
+	public sealed class PwObjectList<T> : IEnumerable<T>
 		where T : class, IDeepClonable<T>
 	{
 		private List<T> m_vObjects = new List<T>();
@@ -61,6 +61,12 @@ namespace KeePassLib.Collections
 			return m_vObjects.GetEnumerator();
 		}
 
+		public void Clear()
+		{
+			// Do not destroy contained objects!
+			m_vObjects.Clear();
+		}
+
 		/// <summary>
 		/// Clone the current <c>PwObjectList</c>, including all
 		/// stored objects (deep copy).
@@ -76,6 +82,16 @@ namespace KeePassLib.Collections
 			return pl;
 		}
 
+		public PwObjectList<T> CloneShallow()
+		{
+			PwObjectList<T> tNew = new PwObjectList<T>();
+
+			foreach(T po in m_vObjects)
+				tNew.Add(po);
+
+			return tNew;
+		}
+
 		/// <summary>
 		/// Add an object to this list.
 		/// </summary>
@@ -84,9 +100,21 @@ namespace KeePassLib.Collections
 		/// parameter is <c>null</c>.</exception>
 		public void Add(T pwObject)
 		{
-			Debug.Assert(pwObject != null); if(pwObject == null) throw new ArgumentNullException();
+			Debug.Assert(pwObject != null);
+			if(pwObject == null) throw new ArgumentNullException("pwObject");
 
 			m_vObjects.Add(pwObject);
+		}
+
+		public void Add(PwObjectList<T> vObjects)
+		{
+			Debug.Assert(vObjects != null);
+			if(vObjects == null) throw new ArgumentNullException("vObjects");
+
+			foreach(T po in vObjects)
+			{
+				m_vObjects.Add(po);
+			}
 		}
 
 		/// <summary>
@@ -97,7 +125,8 @@ namespace KeePassLib.Collections
 		/// <returns>Reference to an existing <c>T</c> object. Is never <c>null</c>.</returns>
 		public T GetAt(uint uIndex)
 		{
-			Debug.Assert(uIndex < m_vObjects.Count); if(uIndex >= m_vObjects.Count) throw new ArgumentException();
+			Debug.Assert(uIndex < m_vObjects.Count);
+			if(uIndex >= m_vObjects.Count) throw new ArgumentOutOfRangeException("uIndex");
 
 			return m_vObjects[(int)uIndex];
 		}
@@ -113,7 +142,7 @@ namespace KeePassLib.Collections
 		/// parameter is <c>null</c>.</exception>
 		public bool Remove(T pwReference)
 		{
-			Debug.Assert(pwReference != null); if(pwReference == null) throw new ArgumentNullException();
+			Debug.Assert(pwReference != null); if(pwReference == null) throw new ArgumentNullException("pwReference");
 
 			return m_vObjects.Remove(pwReference);
 		}
@@ -125,7 +154,8 @@ namespace KeePassLib.Collections
 		/// <param name="bUp">Move one up. If <c>false</c>, move one down.</param>
 		public void MoveOne(T tObject, bool bUp)
 		{
-			Debug.Assert(tObject != null); if(tObject == null) throw new ArgumentNullException();
+			Debug.Assert(tObject != null);
+			if(tObject == null) throw new ArgumentNullException("tObject");
 
 			int nCount = m_vObjects.Count;
 			if(nCount <= 1) return;
@@ -154,7 +184,8 @@ namespace KeePassLib.Collections
 		/// <param name="bTop">Move to top. If <c>false</c>, move to bottom.</param>
 		public void MoveTopBottom(T[] vObjects, bool bTop)
 		{
-			Debug.Assert(vObjects != null); if(vObjects == null) throw new ArgumentNullException();
+			Debug.Assert(vObjects != null);
+			if(vObjects == null) throw new ArgumentNullException("vObjects");
 
 			if(vObjects.Length == 0) return;
 

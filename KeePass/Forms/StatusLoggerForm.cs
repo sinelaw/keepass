@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -48,12 +48,14 @@ namespace KeePass.Forms
 			m_bIsModal = bIsModal;
 		}
 
-		public void StartLogging(string strOperation)
+		public void StartLogging(string strOperation, bool bWriteOperationToLog)
 		{
 			if(strOperation != null)
 			{
 				this.Text = PwDefs.ShortProductName + " - " + strOperation;
-				this.SetText(strOperation, LogStatusType.Info);
+				
+				if(bWriteOperationToLog)
+					this.SetText(strOperation, LogStatusType.Info);
 			}
 
 			m_pbProgress.Value = 0;
@@ -116,6 +118,7 @@ namespace KeePass.Forms
 		public StatusLoggerForm()
 		{
 			InitializeComponent();
+			Program.Translation.ApplyTo(this);
 		}
 
 		private void OnFormLoad(object sender, EventArgs e)

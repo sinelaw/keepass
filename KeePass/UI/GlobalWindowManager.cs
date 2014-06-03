@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -78,7 +78,7 @@ namespace KeePass.UI
 			Debug.Assert(m_vWindows.IndexOf(kvp) < 0);
 			m_vWindows.Add(kvp);
 
-			form.TopMost = AppConfigEx.GetBool(AppDefs.ConfigKeys.AlwaysOnTop);
+			form.TopMost = Program.Config.MainWindow.AlwaysOnTop;
 		}
 
 		public static void AddDialog(CommonDialog dlg)

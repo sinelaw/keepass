@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ using System.Text;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
+using System.Threading;
 
 using KeePass.Native;
 
@@ -41,9 +42,9 @@ namespace KeePass.Util
 				if(bObfuscate)
 				{
 					try { SendObfuscated(strKeys); }
-					catch(Exception) { SendKeys.SendWait(strKeys); }
+					catch(Exception) { SendKeysWithSpecial(strKeys); }
 				}
-				else SendKeys.SendWait(strKeys);
+				else SendKeysWithSpecial(strKeys);
 			}
 			catch
 			{
@@ -61,7 +62,7 @@ namespace KeePass.Util
 				NativeMethods.BlockInput(true);
 
 				SendKeys.Flush();
-				Application.DoEvents();
+				// Application.DoEvents(); // Done by SendKeys.Flush
 
 				List<int> lMod = GetActiveKeyModifiers();
 				ActivateKeyModifiers(lMod, false);
@@ -87,28 +88,27 @@ namespace KeePass.Util
 
 		private static bool SendModifierVKey(int vKey, bool bDown)
 		{
-			Debug.Assert((Marshal.SizeOf(typeof(NativeMethods.INPUT)) == 28) ||
-				(Marshal.SizeOf(typeof(NativeMethods.INPUT)) == 32));
+			Debug.Assert((Marshal.SizeOf(typeof(NativeMethods.INPUT32)) == 28) ||
+				(Marshal.SizeOf(typeof(NativeMethods.INPUT32)) == 32));
 
 			if(bDown || IsKeyModifierActive(vKey))
 			{
-				NativeMethods.INPUT[] pInput = new NativeMethods.INPUT[1];
+				NativeMethods.INPUT32[] pInput = new NativeMethods.INPUT32[1];
 
 				pInput[0].Type = NativeMethods.INPUT_KEYBOARD;
 				pInput[0].KeyboardInput.VirtualKeyCode = (ushort)vKey;
 				pInput[0].KeyboardInput.ScanCode =
 					(ushort)(NativeMethods.MapVirtualKey((uint)vKey, 0) & 0xFF);
-				pInput[0].KeyboardInput.Flags = (bDown ? 0 :
-					NativeMethods.KEYEVENTF_KEYUP) | ((((vKey >= 0x21) &&
-					(vKey <= 0x2E)) || ((vKey >= 0x6A) && (vKey <= 0x6F))) ?
-					NativeMethods.KEYEVENTF_EXTENDEDKEY : 0);
+				pInput[0].KeyboardInput.Flags = ((bDown ? 0 :
+					NativeMethods.KEYEVENTF_KEYUP) | (IsExtendedKeyEx(vKey) ?
+					NativeMethods.KEYEVENTF_EXTENDEDKEY : 0));
 				pInput[0].KeyboardInput.Time = 0;
 				pInput[0].KeyboardInput.ExtraInfo = NativeMethods.GetMessageExtraInfo();
 
-				if(NativeMethods.SendInput(1, pInput,
-					Marshal.SizeOf(typeof(NativeMethods.INPUT))) != 1)
+				if(NativeMethods.SendInput32(1, pInput,
+					Marshal.SizeOf(typeof(NativeMethods.INPUT32))) != 1)
 				{
-					Debug.Assert(false);
+					// Debug.Assert(false);
 					return false;
 				}
 
@@ -118,7 +118,17 @@ namespace KeePass.Util
 			return false;
 		}
 
-		public static List<int> GetActiveKeyModifiers()
+		private static bool IsExtendedKeyEx(int vKey)
+		{
+			// if(vKey == NativeMethods.VK_CAPITAL) return true;
+
+			if((vKey >= 0x21) && (vKey <= 0x2E)) return true;
+			if((vKey >= 0x6A) && (vKey <= 0x6F)) return true;
+
+			return false;
+		}
+
+		private static List<int> GetActiveKeyModifiers()
 		{
 			List<int> lSet = new List<int>();
 
@@ -158,14 +168,19 @@ namespace KeePass.Util
 				return ((usState & 0x8000) != 0);
 		}
 
-		public static void ActivateKeyModifiers(List<int> vKeys, bool bDown)
+		private static void ActivateKeyModifiers(List<int> vKeys, bool bDown)
 		{
 			Debug.Assert(vKeys != null);
 			if(vKeys == null) throw new ArgumentNullException("vKeys");
 
 			foreach(int vKey in vKeys)
 			{
-				SendModifierVKey(vKey, bDown);
+				if(vKey == NativeMethods.VK_CAPITAL) // Toggle
+				{
+					SendModifierVKey(vKey, true);
+					SendModifierVKey(vKey, false);
+				}
+				else SendModifierVKey(vKey, bDown);
 			}
 		}
 
@@ -191,7 +206,7 @@ namespace KeePass.Util
 					if(strPart.Length == 0) continue;
 
 					if(strPart.IndexOfAny(vSpecial) >= 0)
-						SendKeys.SendWait(strPart);
+						SendKeysWithSpecial(strPart);
 					else
 						MixedTransfer(strPart);
 				}
@@ -199,7 +214,7 @@ namespace KeePass.Util
 			catch(Exception ex) { excpInner = ex; }
 
 			cnt.SetData();
-			cev.Dispose();
+			cev.Release();
 
 			if(excpInner != null) throw excpInner;
 		}
@@ -382,7 +397,7 @@ namespace KeePass.Util
 			if(strClip.Length > 0) Clipboard.SetText(strClip);
 			else Clipboard.Clear();
 
-			if(strKeys.Length > 0) SendKeys.SendWait(strKeys);
+			if(strKeys.Length > 0) SendKeysWithSpecial(strKeys);
 
 			Clipboard.Clear();
 		}
@@ -400,6 +415,43 @@ namespace KeePass.Util
 			// Prevent overflow (see Random class constructor)
 			if(nSeed == int.MinValue) nSeed = 13;
 			return nSeed;
+		}
+
+		private static void SendKeysWithSpecial(string strSequence)
+		{
+			Debug.Assert(strSequence != null);
+			if(strSequence == null) return;
+			if(strSequence.Length == 0) return;
+
+			bool bDefaultSend = true;
+			string strLower = strSequence.ToLower();
+
+			int nDelayStart = strLower.IndexOf("{delay ");
+			if(nDelayStart >= 0)
+			{
+				int nDelayEnd = strLower.IndexOf('}', nDelayStart);
+				if(nDelayEnd >= 0)
+				{
+					uint uDelay;
+					string strDelay = strSequence.Substring(nDelayStart + 7,
+						nDelayEnd - (nDelayStart + 7));
+					if(uint.TryParse(strDelay, out uDelay))
+					{
+						string strFirstPart = strSequence.Substring(0,
+							nDelayStart);
+						string strSecondPart = strSequence.Substring(
+							nDelayEnd + 1);
+
+						SendKeysWithSpecial(strFirstPart);
+						SendKeys.Flush();
+						Thread.Sleep((int)uDelay);
+						SendKeysWithSpecial(strSecondPart);
+						bDefaultSend = false;
+					}
+				}
+			}
+
+			if(bDefaultSend) SendKeys.SendWait(strSequence);
 		}
 	}
 }

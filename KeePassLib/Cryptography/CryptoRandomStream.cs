@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,12 +25,17 @@ namespace KeePassLib.Cryptography
 	/// <summary>
 	/// Algorithms supported by <c>CryptoRandomStream</c>.
 	/// </summary>
-	public enum CrsAlgorithm : uint
+	public enum CrsAlgorithm
 	{
+		/// <summary>
+		/// Not supported.
+		/// </summary>
+		Null = 0,
+
 		/// <summary>
 		/// The ARCFour algorithm (RC4 compatible).
 		/// </summary>
-		ArcFour = 0
+		ArcFour = 1
 	}
 
 	/// <summary>
@@ -61,7 +66,7 @@ namespace KeePassLib.Cryptography
 		{
 			m_crsAlgorithm = genAlgorithm;
 
-			Debug.Assert(pbKey != null); if(pbKey == null) throw new ArgumentNullException();
+			Debug.Assert(pbKey != null); if(pbKey == null) throw new ArgumentNullException("pbKey");
 
 			uint uKeyLen = (uint)pbKey.Length;
 			Debug.Assert(uKeyLen != 0); if(uKeyLen == 0) throw new ArgumentException();
@@ -86,7 +91,7 @@ namespace KeePassLib.Cryptography
 					if(inxKey >= uKeyLen) inxKey = 0;
 				}
 
-				GetRandomBytes(512); // Throw away the first bytes
+				this.GetRandomBytes(512); // Throw away the first bytes
 			}
 			else // Unknown algorithm
 			{
@@ -126,6 +131,16 @@ namespace KeePassLib.Cryptography
 			else { Debug.Assert(false); }
 
 			return pbRet;
+		}
+
+		public ulong GetRandomUInt64()
+		{
+			byte[] pb = this.GetRandomBytes(8);
+
+			return ((ulong)pb[0]) | ((ulong)pb[1] << 8) |
+				((ulong)pb[2] << 16) | ((ulong)pb[3] << 24) |
+				((ulong)pb[4] << 32) | ((ulong)pb[5] << 40) |
+				((ulong)pb[6] << 48) | ((ulong)pb[7] << 56);
 		}
 	}
 }

@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ using System.Data;
 using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
+using System.IO;
 
 using KeePass.App;
 using KeePass.UI;
@@ -31,25 +32,27 @@ using KeePass.Resources;
 using KeePass.Util;
 
 using KeePassLib;
+using KeePassLib.Translation;
 using KeePassLib.Utility;
 
 namespace KeePass.Forms
 {
-	public partial class LanguageForm : Form
+	public partial class LanguageForm : Form, IGwmWindow
 	{
-		private List<AvTranslation> m_lTranslations = null;
+		public bool CanCloseWithoutDataLoss { get { return true; } }
 
 		public LanguageForm()
 		{
 			InitializeComponent();
+			Program.Translation.ApplyTo(this);
 		}
 
 		private void OnFormLoad(object sender, EventArgs e)
 		{
-			GlobalWindowManager.AddWindow(this);
+			GlobalWindowManager.AddWindow(this, this);
 
 			m_bannerImage.Image = BannerFactory.CreateBanner(m_bannerImage.Width,
-				m_bannerImage.Height, BannerFactory.BannerStyle.Default,
+				m_bannerImage.Height, BannerStyle.Default,
 				Properties.Resources.B48x48_Keyboard_Layout,
 				KPRes.SelectLanguage, KPRes.SelectLanguageDesc);
 			this.Icon = Properties.Resources.KeePass;
@@ -68,14 +71,35 @@ namespace KeePass.Forms
 
 			string strExe = WinUtil.GetExecutable();
 			string strPath = UrlUtil.GetFileDirectory(strExe, false);
-			m_lTranslations = TranslationUtil.GetAvailableTranslations(strPath);
+			GetAvailableTranslations(strPath);
+		}
 
-			foreach(AvTranslation trl in m_lTranslations)
+		private void GetAvailableTranslations(string strPath)
+		{
+			DirectoryInfo di = new DirectoryInfo(strPath);
+			FileInfo[] vFiles = di.GetFiles();
+
+			foreach(FileInfo fi in vFiles)
 			{
-				lvi = m_lvLanguages.Items.Add(trl.LanguageEnglishName, 0);
-				lvi.SubItems.Add(trl.VersionForApp);
-				lvi.SubItems.Add(trl.AuthorName);
-				lvi.SubItems.Add(trl.AuthorContact);
+				if(fi.FullName.ToLower().EndsWith("." + KPTranslation.FileExtension))
+				{
+					try
+					{
+						KPTranslation kpTrl = KPTranslation.LoadFromFile(fi.FullName);
+
+						ListViewItem lvi = m_lvLanguages.Items.Add(
+							kpTrl.Properties.NameEnglish, 0);
+						lvi.SubItems.Add(kpTrl.Properties.ApplicationVersion);
+						lvi.SubItems.Add(kpTrl.Properties.AuthorName);
+						lvi.SubItems.Add(kpTrl.Properties.AuthorContact);
+						lvi.Tag = UrlUtil.GetFileName(fi.FullName);
+					}
+					catch(Exception ex)
+					{
+						MessageBox.Show(ex.Message, PwDefs.ShortProductName,
+							MessageBoxButtons.OK, MessageBoxIcon.Warning);
+					}
+				}
 			}
 		}
 
@@ -88,19 +112,33 @@ namespace KeePass.Forms
 			ListView.SelectedListViewItemCollection lvic = m_lvLanguages.SelectedItems;
 			if((lvic == null) || (lvic.Count != 1)) return;
 
-			if(lvic[0].Index == 0)
-				AppConfigEx.SetValue(AppDefs.ConfigKeys.Language, "en");
+			if(lvic[0].Index == 0) // First item selected = English
+			{
+				if(Program.Config.Application.LanguageFile.Length == 0)
+					return; // Is built-English already
+
+				Program.Config.Application.LanguageFile = string.Empty;
+			}
 			else
-				AppConfigEx.SetValue(AppDefs.ConfigKeys.Language,
-					m_lTranslations[lvic[0].Index - 1].LanguageID);
+			{
+				string strSelID = lvic[0].Tag as string;
+				if(strSelID == Program.Config.Application.LanguageFile) return;
+
+				Program.Config.Application.LanguageFile = strSelID;
+			}
 
 			this.DialogResult = DialogResult.OK;
-			Close();
+			this.Close();
 		}
 
 		private void OnFormClosed(object sender, FormClosedEventArgs e)
 		{
 			GlobalWindowManager.RemoveWindow(this);
+		}
+
+		private void OnBtnGetMore(object sender, EventArgs e)
+		{
+			WinUtil.OpenUrl(PwDefs.TranslationsUrl, null);
 		}
 	}
 }

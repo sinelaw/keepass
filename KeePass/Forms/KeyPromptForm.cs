@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ using KeePass.Util;
 
 using KeePassLib;
 using KeePassLib.Keys;
+using KeePassLib.Native;
 using KeePassLib.Utility;
 
 namespace KeePass.Forms
@@ -42,7 +43,7 @@ namespace KeePass.Forms
 	public partial class KeyPromptForm : Form
 	{
 		private CompositeKey m_pKey = null;
-		private string m_strDisplayName = string.Empty;
+		private string m_strFilePath = string.Empty;
 		
 		private bool m_bCanExit = false;
 		private bool m_bHasExited = false;
@@ -51,8 +52,8 @@ namespace KeePass.Forms
 
 		private bool m_bInitializing = false;
 
-		private List<string> m_vSuggestions = new List<string>();
-		private bool m_bSuggestionsReady = false;
+		private volatile List<string> m_vSuggestions = new List<string>();
+		private volatile bool m_bSuggestionsReady = false;
 
 		public CompositeKey CompositeKey
 		{
@@ -71,30 +72,37 @@ namespace KeePass.Forms
 		public KeyPromptForm()
 		{
 			InitializeComponent();
+			Program.Translation.ApplyTo(this);
 		}
 
-		public void InitEx(string strDisplayName, bool bCanExit)
+		public void InitEx(string strFilePath, bool bCanExit)
 		{
-			if(strDisplayName != null) m_strDisplayName = strDisplayName;
+			if(strFilePath != null) m_strFilePath = strFilePath;
 
 			m_bCanExit = bCanExit;
 		}
 
 		private void OnFormLoad(object sender, EventArgs e)
 		{
-			Debug.Assert(m_strDisplayName != null);
-			if(m_strDisplayName == null) throw new ArgumentNullException();
+			Debug.Assert(m_strFilePath != null);
+			if(m_strFilePath == null) m_strFilePath = string.Empty;
 
 			GlobalWindowManager.AddWindow(this);
 
 			m_bInitializing = true;
 
-			string strBannerDesc = WinUtil.CompactPath(m_strDisplayName, 45);
+			string strBannerDesc = WinUtil.CompactPath(m_strFilePath, 45);
 			m_bannerImage.Image = BannerFactory.CreateBanner(m_bannerImage.Width,
-				m_bannerImage.Height, BannerFactory.BannerStyle.Default,
+				m_bannerImage.Height, BannerStyle.Default,
 				Properties.Resources.B48x48_KGPG_Key2, KPRes.EnterCompositeKey,
 				strBannerDesc);
 			this.Icon = Properties.Resources.KeePass;
+
+			m_ttRect.SetToolTip(m_cbHidePassword, KPRes.TogglePasswordAsterisks);
+			m_ttRect.SetToolTip(m_btnOpenKeyFile, KPRes.KeyFileSelect);
+
+			string strNameEx = UrlUtil.GetFileName(m_strFilePath);
+			if(strNameEx.Length > 0) this.Text += " - " + strNameEx;
 
 			m_tbPassword.Text = string.Empty;
 			m_secPassword.Attach(m_tbPassword, ProcessTextChangedPassword, true);
@@ -103,7 +111,7 @@ namespace KeePass.Forms
 			m_cmbKeyFile.SelectedIndex = 0;
 
 			if((Program.CommandLineArgs.FileName != null) &&
-				(m_strDisplayName == Program.CommandLineArgs.FileName))
+				(m_strFilePath == Program.CommandLineArgs.FileName))
 			{
 				string str;
 
@@ -141,16 +149,29 @@ namespace KeePass.Forms
 			m_btnExit.Enabled = m_bCanExit;
 			m_btnExit.Visible = m_bCanExit;
 
+			if(WinUtil.IsWindows9x || NativeLib.IsUnix())
+				m_cbUserAccount.Enabled = false;
+
+			CustomizeForScreenReader();
 			EnableUserControls();
 
 			m_bInitializing = false;
 
-			Thread th = new Thread(new ThreadStart(PopulateKeyFileSuggestions));
+			// Local, but thread will continue to run anyway
+			Thread th = new Thread(new ThreadStart(this.AsyncFormLoad));
 			th.Start();
 
 			this.BringToFront();
 			this.Activate();
 			m_tbPassword.Focus();
+		}
+
+		private void CustomizeForScreenReader()
+		{
+			if(!Program.Config.UI.OptimizeForScreenReader) return;
+
+			m_cbHidePassword.Text = KPRes.HideUsingAsterisks;
+			m_btnOpenKeyFile.Text = KPRes.SelectFile;
 		}
 
 		private void CleanUpEx()
@@ -164,14 +185,17 @@ namespace KeePass.Forms
 
 			if(m_cbPassword.Checked) // Use a password
 			{
-				byte[] pb = m_secPassword.ToUTF8();
+				byte[] pb = m_secPassword.ToUtf8();
 				m_pKey.AddUserKey(new KcpPassword(pb));
 				Array.Clear(pb, 0, pb.Length);
 			}
 
 			string strKeyFile = m_cmbKeyFile.Text;
 			Debug.Assert(strKeyFile != null); if(strKeyFile == null) strKeyFile = string.Empty;
-			if(m_cbKeyFile.Checked && !strKeyFile.Equals(KPRes.NoKeyFileSpecifiedMeta))
+			bool bIsProvKey = Program.KeyProviderPool.IsKeyProvider(strKeyFile);
+
+			if(m_cbKeyFile.Checked && (!strKeyFile.Equals(KPRes.NoKeyFileSpecifiedMeta)) &&
+				(bIsProvKey == false))
 			{
 				if(ValidateKeyFileLocation() == false)
 				{
@@ -179,11 +203,7 @@ namespace KeePass.Forms
 					return false;
 				}
 
-				try
-				{
-					KcpKeyFile kf = new KcpKeyFile(strKeyFile);
-					m_pKey.AddUserKey(kf);
-				}
+				try { m_pKey.AddUserKey(new KcpKeyFile(strKeyFile)); }
 				catch(Exception)
 				{
 					MessageService.ShowWarning(strKeyFile, KPRes.KeyFileError);
@@ -191,8 +211,32 @@ namespace KeePass.Forms
 					return false;
 				}
 			}
+			else if(m_cbKeyFile.Checked && (!strKeyFile.Equals(KPRes.NoKeyFileSpecifiedMeta)) &&
+				(bIsProvKey == true))
+			{
+				byte[] pbProvKey = Program.KeyProviderPool.GetKey(strKeyFile);
+
+				try { m_pKey.AddUserKey(new KcpCustomKey(pbProvKey)); }
+				catch(Exception exCKP)
+				{
+					MessageService.ShowWarning(strKeyFile, KPRes.KeyFileError, exCKP);
+					m_pKey = null;
+					return false;
+				}
+
+				if((pbProvKey != null) && (pbProvKey.Length > 0))
+					Array.Clear(pbProvKey, 0, pbProvKey.Length);
+			}
+
 			if(m_cbUserAccount.Checked)
-				m_pKey.AddUserKey(new KcpUserAccount());
+			{
+				try { m_pKey.AddUserKey(new KcpUserAccount()); }
+				catch(Exception exUA)
+				{
+					MessageService.ShowWarning(exUA);
+					return false;
+				}
+			}
 
 			return true;
 		}
@@ -202,6 +246,8 @@ namespace KeePass.Forms
 			string strKeyFile = m_cmbKeyFile.Text;
 			Debug.Assert(strKeyFile != null); if(strKeyFile == null) strKeyFile = string.Empty;
 			if(strKeyFile.Equals(KPRes.NoKeyFileSpecifiedMeta)) return true;
+
+			if(Program.KeyProviderPool.IsKeyProvider(strKeyFile)) return true;
 
 			bool bSuccess = true;
 
@@ -274,13 +320,15 @@ namespace KeePass.Forms
 
 		private void OnClickKeyFileBrowse(object sender, EventArgs e)
 		{
-			m_openKeyFileDialog.InitialDirectory = UrlUtil.GetFileDirectory(m_strDisplayName, false);
+			string strFilter = UIUtil.CreateFileTypeFilter("key", KPRes.KeyFiles, true);
+			OpenFileDialog ofd = UIUtil.CreateOpenFileDialog(KPRes.KeyFileSelect,
+				strFilter, 2, null, false, true);
 
-			if(m_openKeyFileDialog.ShowDialog() == DialogResult.OK)
+			if(ofd.ShowDialog() == DialogResult.OK)
 			{
 				m_cbKeyFile.Checked = true;
 
-				m_cmbKeyFile.Items.Add(m_openKeyFileDialog.FileName);
+				m_cmbKeyFile.Items.Add(ofd.FileName);
 				m_cmbKeyFile.SelectedIndex = m_cmbKeyFile.Items.Count - 1;
 			}
 
@@ -301,10 +349,15 @@ namespace KeePass.Forms
 			else m_cbKeyFile.Checked = false;
 		}
 
+		private void AsyncFormLoad()
+		{
+			try { this.PopulateKeyFileSuggestions(); }
+			catch(Exception) { Debug.Assert(false); }
+		}
+
 		private void PopulateKeyFileSuggestions()
 		{
-			bool bSearchOnRemovable = AppConfigEx.GetBool(
-				AppDefs.ConfigKeys.SearchKeyFilesOnRemovable);
+			bool bSearchOnRemovable = Program.Config.Integration.SearchKeyFilesOnRemovableMedia;
 
 			foreach(DriveInfo di in DriveInfo.GetDrives())
 			{
@@ -327,6 +380,11 @@ namespace KeePass.Forms
 						m_vSuggestions.Add(fi.FullName);
 				}
 				catch(Exception) { Debug.Assert(false); }
+			}
+
+			foreach(KeyProvider prov in Program.KeyProviderPool)
+			{
+				m_vSuggestions.Add(prov.Name);
 			}
 
 			m_bSuggestionsReady = true;

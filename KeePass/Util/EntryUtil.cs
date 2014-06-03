@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,7 +26,9 @@ using System.IO;
 using System.IO.Compression;
 using System.Security.Cryptography;
 
+using KeePass.Forms;
 using KeePass.Resources;
+using KeePass.Util.Spr;
 
 using KeePassLib;
 using KeePassLib.Security;
@@ -123,6 +125,7 @@ namespace KeePass.Util
 
 			List<PwEntry> vEntries = Kdb4File.ReadEntries(pwDatabase, gz);
 
+			// Adjust protection settings and add entries
 			foreach(PwEntry pe in vEntries)
 			{
 				ProtectedString ps = pe.Strings.Get(PwDefs.TitleField);
@@ -140,10 +143,45 @@ namespace KeePass.Util
 				ps = pe.Strings.Get(PwDefs.NotesField);
 				if(ps != null) ps.EnableProtection(pwDatabase.MemoryProtection.ProtectNotes);
 
-				pgStorage.Entries.Add(pe);
+				pgStorage.AddEntry(pe, true);
 			}
 
 			gz.Close(); ms.Close();
+		}
+
+		public static string FillPlaceholders(string strText, PwEntry pe,
+			SprContentFlags cf)
+		{
+			if(pe == null) return strText;
+
+			string str = strText;
+
+			if(str.ToUpper().IndexOf(@"{PICKPASSWORDCHARS}") >= 0)
+			{
+				ProtectedString ps = pe.Strings.Get(PwDefs.PasswordField);
+				if(ps != null)
+				{
+					byte[] pb = ps.ReadUtf8();
+					bool bNotEmpty = (pb.Length > 0);
+					Array.Clear(pb, 0, pb.Length);
+
+					if(bNotEmpty)
+					{
+						CharPickerForm cpf = new CharPickerForm();
+						cpf.InitEx(ps, true, true);
+
+						if(cpf.ShowDialog() == DialogResult.OK)
+						{
+							str = StrUtil.ReplaceCaseInsensitive(str, @"{PICKPASSWORDCHARS}",
+								SprEngine.TransformContent(cpf.SelectedCharacters.ReadString(), cf));
+						}
+					}
+				}
+
+				str = StrUtil.ReplaceCaseInsensitive(str, @"{PICKPASSWORDCHARS}", string.Empty);
+			}
+
+			return str;
 		}
 	}
 }

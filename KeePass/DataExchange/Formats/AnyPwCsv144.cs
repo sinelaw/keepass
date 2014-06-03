@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,13 +33,16 @@ using KeePassLib.Security;
 
 namespace KeePass.DataExchange.Formats
 {
-	public sealed class AnyPwCsv144 : FormatImporter
+	internal sealed class AnyPwCsv144 : FileFormatProvider
 	{
+		public override bool SupportsImport { get { return true; } }
+		public override bool SupportsExport { get { return false; } }
+
 		public override string FormatName { get { return "Any Password CSV 1.44"; } }
 		public override string DefaultExtension { get { return "csv"; } }
-		public override string AppGroup { get { return KPRes.PasswordManagers; } }
+		public override string ApplicationGroup { get { return KPRes.PasswordManagers; } }
 		
-		public override bool AppendsToRootGroupOnly { get { return true; } }
+		public override bool ImportAppendsToRootGroupOnly { get { return true; } }
 
 		public override Image SmallIcon
 		{
@@ -66,8 +69,8 @@ namespace KeePass.DataExchange.Formats
 			List<string> list = ImportUtil.SplitCsvLine(strLine, ",");
 			Debug.Assert(list.Count == 6);
 
-			PwEntry pe = new PwEntry(pwStorage.RootGroup, true, true);
-			pwStorage.RootGroup.Entries.Add(pe);
+			PwEntry pe = new PwEntry(true, true);
+			pwStorage.RootGroup.AddEntry(pe, true);
 
 			if(list.Count == 6)
 			{
@@ -99,8 +102,7 @@ namespace KeePass.DataExchange.Formats
 
 		private static string ParseCsvWord(string strWord, bool bFixCodes)
 		{
-			string str = strWord.TrimStart(new char[]{ '\"' });
-			str = str.TrimEnd(new char[]{ '\"' });
+			string str = strWord.Trim(new char[]{ '\"' });
 
 			str = str.Replace("\"\"", "\"");
 

@@ -55,15 +55,14 @@
 			// 
 			this.m_lblCopyright.Location = new System.Drawing.Point(12, 72);
 			this.m_lblCopyright.Name = "m_lblCopyright";
-			this.m_lblCopyright.Size = new System.Drawing.Size(321, 15);
+			this.m_lblCopyright.Size = new System.Drawing.Size(400, 15);
 			this.m_lblCopyright.TabIndex = 1;
-			this.m_lblCopyright.Text = "Copyright © 2003-2007 Dominik Reichl.";
 			// 
 			// m_lblOsi
 			// 
 			this.m_lblOsi.Location = new System.Drawing.Point(12, 96);
 			this.m_lblOsi.Name = "m_lblOsi";
-			this.m_lblOsi.Size = new System.Drawing.Size(363, 14);
+			this.m_lblOsi.Size = new System.Drawing.Size(400, 14);
 			this.m_lblOsi.TabIndex = 2;
 			this.m_lblOsi.Text = "KeePass is OSI Certified Open Source Software.";
 			// 
@@ -92,10 +91,10 @@
 			this.m_linkHelp.AutoSize = true;
 			this.m_linkHelp.Location = new System.Drawing.Point(228, 155);
 			this.m_linkHelp.Name = "m_linkHelp";
-			this.m_linkHelp.Size = new System.Drawing.Size(96, 13);
+			this.m_linkHelp.Size = new System.Drawing.Size(29, 13);
 			this.m_linkHelp.TabIndex = 6;
 			this.m_linkHelp.TabStop = true;
-			this.m_linkHelp.Text = "Online Help Center";
+			this.m_linkHelp.Text = "Help";
 			this.m_linkHelp.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.OnLinkHelpFile);
 			// 
 			// m_linkLicense
@@ -178,8 +177,8 @@
 			this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
 			this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
 			this.Text = "About KeePass";
-			this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.OnFormClosed);
 			this.Load += new System.EventHandler(this.OnFormLoad);
+			this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.OnFormClosed);
 			((System.ComponentModel.ISupportInitialize)(this.m_bannerImage)).EndInit();
 			this.ResumeLayout(false);
 			this.PerformLayout();

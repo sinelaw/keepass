@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Drawing.Drawing2D;
 using System.Diagnostics;
+using System.Windows.Forms;
 
 using KeePass.App;
 
@@ -30,33 +31,32 @@ using KeePassLib.Utility;
 
 namespace KeePass.UI
 {
+	public enum BannerStyle
+	{
+		Default = 0,
+		WinXPLogin = 1,
+		WinVistaBlack = 2,
+		KeePassWin32 = 3,
+		BlueCarbon = 4
+	}
+
 	public static class BannerFactory
 	{
 		private static Dictionary<string, Image> m_vImageCache = new Dictionary<string, Image>();
 		private const int MaxCachedImages = 32;
 
-		public enum BannerStyle : uint
-		{
-			Default = 0,
-			WinXPLogin,
-			WinVistaBlack,
-			KeePassWin32,
-			BlueCarbon
-		}
-
 		public static Image CreateBanner(int nWidth, int nHeight, BannerStyle bs, Image imgIcon, string strTitle, string strLine)
 		{
 			// imgIcon may be null.
-			Debug.Assert(strTitle != null); if(strTitle == null) throw new ArgumentNullException();
-			Debug.Assert(strLine != null); if(strLine == null) throw new ArgumentNullException();
+			Debug.Assert(strTitle != null); if(strTitle == null) throw new ArgumentNullException("strTitle");
+			Debug.Assert(strLine != null); if(strLine == null) throw new ArgumentNullException("strLine");
 
 			string strImageID = nWidth.ToString() + "x" + nHeight.ToString() + ":";
 			if(strTitle != null) strImageID += strTitle;
 			strImageID += ":";
 			if(strLine != null) strImageID += strLine;
 
-			if(bs == BannerStyle.Default)
-				bs = (BannerStyle)AppConfigEx.GetUInt(AppDefs.ConfigKeys.BannerStyle);
+			if(bs == BannerStyle.Default) bs = Program.Config.UI.BannerStyle;
 
 			strImageID += ":" + ((uint)bs).ToString();
 
@@ -188,6 +188,7 @@ namespace KeePass.UI
 			// Save in cache.
 			m_vImageCache[strImageID] = img;
 
+			g.Dispose();
 			return img;
 		}
 	}

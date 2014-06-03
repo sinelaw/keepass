@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -58,7 +58,9 @@ namespace KeePassLib.Interfaces
 		/// </summary>
 		/// <param name="strOperation">This string should roughly describe
 		/// the operation, of which the status is logged.</param>
-		void StartLogging(string strOperation);
+		/// <param name="bWriteOperationToLog">Specifies whether the
+		/// operation is written to the log or not.</param>
+		void StartLogging(string strOperation, bool bWriteOperationToLog);
 
 		/// <summary>
 		/// Function which needs to be called when logging is ended

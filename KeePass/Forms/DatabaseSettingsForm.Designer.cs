@@ -55,7 +55,6 @@
 			this.m_tabSecurity = new System.Windows.Forms.TabPage();
 			this.m_lblSecIntro = new System.Windows.Forms.Label();
 			this.m_tabProtection = new System.Windows.Forms.TabPage();
-			this.m_cbAutoEnableHiding = new System.Windows.Forms.CheckBox();
 			this.m_lblViewHint = new System.Windows.Forms.Label();
 			this.m_lblMemProtEnable = new System.Windows.Forms.Label();
 			this.m_lblMemProtHint = new System.Windows.Forms.Label();
@@ -120,7 +119,7 @@
 			this.m_grpEncAlgo.Controls.Add(this.m_cmbEncAlgo);
 			this.m_grpEncAlgo.Location = new System.Drawing.Point(9, 37);
 			this.m_grpEncAlgo.Name = "m_grpEncAlgo";
-			this.m_grpEncAlgo.Size = new System.Drawing.Size(436, 48);
+			this.m_grpEncAlgo.Size = new System.Drawing.Size(436, 53);
 			this.m_grpEncAlgo.TabIndex = 1;
 			this.m_grpEncAlgo.TabStop = false;
 			this.m_grpEncAlgo.Text = "Encryption";
@@ -140,14 +139,14 @@
 			this.m_cmbEncAlgo.FormattingEnabled = true;
 			this.m_cmbEncAlgo.Location = new System.Drawing.Point(206, 19);
 			this.m_cmbEncAlgo.Name = "m_cmbEncAlgo";
-			this.m_cmbEncAlgo.Size = new System.Drawing.Size(224, 21);
+			this.m_cmbEncAlgo.Size = new System.Drawing.Size(219, 21);
 			this.m_cmbEncAlgo.TabIndex = 1;
 			// 
 			// m_lblTransIntro
 			// 
 			this.m_lblTransIntro.Location = new System.Drawing.Point(6, 16);
 			this.m_lblTransIntro.Name = "m_lblTransIntro";
-			this.m_lblTransIntro.Size = new System.Drawing.Size(429, 40);
+			this.m_lblTransIntro.Size = new System.Drawing.Size(424, 40);
 			this.m_lblTransIntro.TabIndex = 0;
 			this.m_lblTransIntro.Text = "The composite master key is transformed several times before being used as encryp" +
 				"tion key for the database. This adds a constant time factor and makes dictionary" +
@@ -166,7 +165,7 @@
 			// 
 			this.m_lblTransInfo.Location = new System.Drawing.Point(6, 103);
 			this.m_lblTransInfo.Name = "m_lblTransInfo";
-			this.m_lblTransInfo.Size = new System.Drawing.Size(429, 28);
+			this.m_lblTransInfo.Size = new System.Drawing.Size(424, 28);
 			this.m_lblTransInfo.TabIndex = 4;
 			this.m_lblTransInfo.Text = "The higher this number the harder are dictionary attacks. But also database loadi" +
 				"ng/saving takes more time.";
@@ -178,12 +177,12 @@
 			this.m_grpKeyTrans.Controls.Add(this.m_lblTransIntro);
 			this.m_grpKeyTrans.Controls.Add(this.m_lblTransInfo);
 			this.m_grpKeyTrans.Controls.Add(this.m_lblTransNum);
-			this.m_grpKeyTrans.Location = new System.Drawing.Point(9, 91);
+			this.m_grpKeyTrans.Location = new System.Drawing.Point(9, 96);
 			this.m_grpKeyTrans.Name = "m_grpKeyTrans";
-			this.m_grpKeyTrans.Size = new System.Drawing.Size(441, 137);
+			this.m_grpKeyTrans.Size = new System.Drawing.Size(436, 140);
 			this.m_grpKeyTrans.TabIndex = 2;
 			this.m_grpKeyTrans.TabStop = false;
-			this.m_grpKeyTrans.Text = "Key Transformation";
+			this.m_grpKeyTrans.Text = "Key transformation";
 			// 
 			// m_lnkCompute1SecDelay
 			// 
@@ -194,14 +193,13 @@
 			this.m_lnkCompute1SecDelay.TabIndex = 3;
 			this.m_lnkCompute1SecDelay.TabStop = true;
 			this.m_lnkCompute1SecDelay.Text = "1 second delay";
-			this.m_ttRect.SetToolTip(this.m_lnkCompute1SecDelay, "Compute the number of rounds that lead to a delay of 1 second on this computer.");
 			this.m_lnkCompute1SecDelay.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.OnLinkClicked1SecondDelayRounds);
 			// 
 			// m_numEncRounds
 			// 
 			this.m_numEncRounds.Location = new System.Drawing.Point(206, 61);
 			this.m_numEncRounds.Name = "m_numEncRounds";
-			this.m_numEncRounds.Size = new System.Drawing.Size(229, 20);
+			this.m_numEncRounds.Size = new System.Drawing.Size(219, 20);
 			this.m_numEncRounds.TabIndex = 2;
 			this.m_numEncRounds.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
 			// 
@@ -260,9 +258,9 @@
 			// 
 			// m_tbDefaultUser
 			// 
-			this.m_tbDefaultUser.Location = new System.Drawing.Point(190, 253);
+			this.m_tbDefaultUser.Location = new System.Drawing.Point(180, 253);
 			this.m_tbDefaultUser.Name = "m_tbDefaultUser";
-			this.m_tbDefaultUser.Size = new System.Drawing.Size(247, 20);
+			this.m_tbDefaultUser.Size = new System.Drawing.Size(257, 20);
 			this.m_tbDefaultUser.TabIndex = 5;
 			// 
 			// m_lblDefaultUser
@@ -270,17 +268,17 @@
 			this.m_lblDefaultUser.AutoSize = true;
 			this.m_lblDefaultUser.Location = new System.Drawing.Point(6, 256);
 			this.m_lblDefaultUser.Name = "m_lblDefaultUser";
-			this.m_lblDefaultUser.Size = new System.Drawing.Size(178, 13);
+			this.m_lblDefaultUser.Size = new System.Drawing.Size(168, 13);
 			this.m_lblDefaultUser.TabIndex = 4;
-			this.m_lblDefaultUser.Text = "Default User Name For New Entries:";
+			this.m_lblDefaultUser.Text = "Default user name for new entries:";
 			// 
 			// m_tbDbDesc
 			// 
 			this.m_tbDbDesc.AcceptsReturn = true;
-			this.m_tbDbDesc.AcceptsTab = true;
 			this.m_tbDbDesc.Location = new System.Drawing.Point(9, 57);
 			this.m_tbDbDesc.Multiline = true;
 			this.m_tbDbDesc.Name = "m_tbDbDesc";
+			this.m_tbDbDesc.PromptText = "";
 			this.m_tbDbDesc.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
 			this.m_tbDbDesc.Size = new System.Drawing.Size(428, 177);
 			this.m_tbDbDesc.TabIndex = 3;
@@ -290,15 +288,16 @@
 			this.m_lblDbDesc.AutoSize = true;
 			this.m_lblDbDesc.Location = new System.Drawing.Point(6, 41);
 			this.m_lblDbDesc.Name = "m_lblDbDesc";
-			this.m_lblDbDesc.Size = new System.Drawing.Size(112, 13);
+			this.m_lblDbDesc.Size = new System.Drawing.Size(110, 13);
 			this.m_lblDbDesc.TabIndex = 2;
-			this.m_lblDbDesc.Text = "Database Description:";
+			this.m_lblDbDesc.Text = "Database description:";
 			// 
 			// m_tbDbName
 			// 
-			this.m_tbDbName.Location = new System.Drawing.Point(99, 9);
+			this.m_tbDbName.Location = new System.Drawing.Point(97, 9);
 			this.m_tbDbName.Name = "m_tbDbName";
-			this.m_tbDbName.Size = new System.Drawing.Size(338, 20);
+			this.m_tbDbName.PromptText = "";
+			this.m_tbDbName.Size = new System.Drawing.Size(340, 20);
 			this.m_tbDbName.TabIndex = 0;
 			// 
 			// m_lblDbName
@@ -306,9 +305,9 @@
 			this.m_lblDbName.AutoSize = true;
 			this.m_lblDbName.Location = new System.Drawing.Point(6, 12);
 			this.m_lblDbName.Name = "m_lblDbName";
-			this.m_lblDbName.Size = new System.Drawing.Size(87, 13);
+			this.m_lblDbName.Size = new System.Drawing.Size(85, 13);
 			this.m_lblDbName.TabIndex = 1;
-			this.m_lblDbName.Text = "Database Name:";
+			this.m_lblDbName.Text = "Database name:";
 			// 
 			// m_tabSecurity
 			// 
@@ -334,7 +333,6 @@
 			// 
 			// m_tabProtection
 			// 
-			this.m_tabProtection.Controls.Add(this.m_cbAutoEnableHiding);
 			this.m_tabProtection.Controls.Add(this.m_lblViewHint);
 			this.m_tabProtection.Controls.Add(this.m_lblMemProtEnable);
 			this.m_tabProtection.Controls.Add(this.m_lblMemProtHint);
@@ -348,24 +346,14 @@
 			this.m_tabProtection.Text = "Protection";
 			this.m_tabProtection.UseVisualStyleBackColor = true;
 			// 
-			// m_cbAutoEnableHiding
-			// 
-			this.m_cbAutoEnableHiding.AutoSize = true;
-			this.m_cbAutoEnableHiding.Location = new System.Drawing.Point(9, 265);
-			this.m_cbAutoEnableHiding.Name = "m_cbAutoEnableHiding";
-			this.m_cbAutoEnableHiding.Size = new System.Drawing.Size(363, 17);
-			this.m_cbAutoEnableHiding.TabIndex = 6;
-			this.m_cbAutoEnableHiding.Text = "Automatically enable visual hiding (asterisks) for memory-protected fields";
-			this.m_cbAutoEnableHiding.UseVisualStyleBackColor = true;
-			// 
 			// m_lblViewHint
 			// 
-			this.m_lblViewHint.AutoSize = true;
-			this.m_lblViewHint.Location = new System.Drawing.Point(6, 249);
+			this.m_lblViewHint.Location = new System.Drawing.Point(6, 257);
 			this.m_lblViewHint.Name = "m_lblViewHint";
-			this.m_lblViewHint.Size = new System.Drawing.Size(346, 13);
+			this.m_lblViewHint.Size = new System.Drawing.Size(434, 28);
 			this.m_lblViewHint.TabIndex = 5;
-			this.m_lblViewHint.Text = "Memory protection is useless if you display the fields in the main window.";
+			this.m_lblViewHint.Text = "Memory protection is useless if you display the fields in the main window. Theref" +
+				"ore make sure that hiding by asterisks is enabled for the protected fields.";
 			// 
 			// m_lblMemProtEnable
 			// 
@@ -402,15 +390,14 @@
 			this.m_lbMemProt.Location = new System.Drawing.Point(9, 135);
 			this.m_lbMemProt.Name = "m_lbMemProt";
 			this.m_lbMemProt.ScrollAlwaysVisible = true;
-			this.m_lbMemProt.Size = new System.Drawing.Size(431, 94);
+			this.m_lbMemProt.Size = new System.Drawing.Size(431, 109);
 			this.m_lbMemProt.TabIndex = 4;
 			// 
 			// m_lblProtIntro
 			// 
-			this.m_lblProtIntro.AutoSize = true;
 			this.m_lblProtIntro.Location = new System.Drawing.Point(6, 12);
 			this.m_lblProtIntro.Name = "m_lblProtIntro";
-			this.m_lblProtIntro.Size = new System.Drawing.Size(407, 13);
+			this.m_lblProtIntro.Size = new System.Drawing.Size(434, 13);
 			this.m_lblProtIntro.TabIndex = 0;
 			this.m_lblProtIntro.Text = "On this page you can configure run-time memory protection settings for this datab" +
 				"ase.";
@@ -543,8 +530,8 @@
 			this.ShowInTaskbar = false;
 			this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
 			this.Text = "<DYN>";
-			this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.OnFormClosed);
 			this.Load += new System.EventHandler(this.OnFormLoad);
+			this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.OnFormClosed);
 			((System.ComponentModel.ISupportInitialize)(this.m_bannerImage)).EndInit();
 			this.m_grpEncAlgo.ResumeLayout(false);
 			this.m_grpEncAlgo.PerformLayout();
@@ -606,7 +593,6 @@
 		private System.Windows.Forms.Label m_lblCpGZipCp;
 		private System.Windows.Forms.Label m_lblHeaderCpAlgo;
 		private System.Windows.Forms.Label m_lblViewHint;
-		private System.Windows.Forms.CheckBox m_cbAutoEnableHiding;
 		private System.Windows.Forms.TextBox m_tbDefaultUser;
 		private System.Windows.Forms.Label m_lblDefaultUser;
 	}

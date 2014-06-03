@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,8 +32,11 @@ namespace KeePass.Util
 		private bool m_bEventsRegistered = false;
 		private EventHandler m_evHandler = null;
 
-		public SessionLockNotifier()
+		private bool m_bNotifyOnSuspend;
+
+		public SessionLockNotifier(bool bNotifyOnSuspend)
 		{
+			m_bNotifyOnSuspend = bNotifyOnSuspend;
 		}
 
 #if DEBUG
@@ -49,10 +52,13 @@ namespace KeePass.Util
 
 			try
 			{
-				SystemEvents.SessionEnded += OnSessionEnded;
-				SystemEvents.SessionSwitch += OnSessionSwitch;
+				SystemEvents.SessionEnding += this.OnSessionEnding;
+				SystemEvents.SessionSwitch += this.OnSessionSwitch;
+
+				if(m_bNotifyOnSuspend)
+					SystemEvents.PowerModeChanged += this.OnPowerModeChanged;
 			}
-			catch(Exception) { Debug.Assert(false); }
+			catch(Exception) { Debug.Assert(WinUtil.IsWindows2000); } // 2000 always fails
 
 			m_bEventsRegistered = true;
 
@@ -65,16 +71,19 @@ namespace KeePass.Util
 			{
 				try
 				{
-					SystemEvents.SessionEnded -= OnSessionEnded;
-					SystemEvents.SessionSwitch -= OnSessionSwitch;
+					SystemEvents.SessionEnding -= this.OnSessionEnding;
+					SystemEvents.SessionSwitch -= this.OnSessionSwitch;
+
+					if(m_bNotifyOnSuspend)
+						SystemEvents.PowerModeChanged -= this.OnPowerModeChanged;
 				}
-				catch(Exception) { Debug.Assert(false); }
+				catch(Exception) { Debug.Assert(WinUtil.IsWindows2000); } // 2000 always fails
 
 				m_bEventsRegistered = false;
 			}
 		}
 
-		private void OnSessionEnded(object sender, SessionEndedEventArgs e)
+		private void OnSessionEnding(object sender, SessionEndingEventArgs e)
 		{
 			if(m_evHandler != null) m_evHandler(sender, e);
 		}
@@ -82,6 +91,12 @@ namespace KeePass.Util
 		private void OnSessionSwitch(object sender, SessionSwitchEventArgs e)
 		{
 			if(m_evHandler != null) m_evHandler(sender, e);
+		}
+
+		private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+		{
+			if((m_evHandler != null) && (e.Mode == PowerModes.Suspend))
+				m_evHandler(sender, e);
 		}
 	}
 }

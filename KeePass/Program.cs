@@ -1,6 +1,6 @@
 ﻿/*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,8 +23,13 @@ using System.Windows.Forms;
 using System.Globalization;
 using System.Threading;
 using System.Diagnostics;
+using System.Security.AccessControl;
+using System.Security.Principal;
+using System.IO;
 
 using KeePass.App;
+using KeePass.App.Configuration;
+using KeePass.DataExchange;
 using KeePass.Forms;
 using KeePass.Native;
 using KeePass.Resources;
@@ -33,8 +38,11 @@ using KeePass.Util;
 
 using KeePassLib;
 using KeePassLib.Cryptography.Cipher;
+using KeePassLib.Keys;
+using KeePassLib.Resources;
 using KeePassLib.Security;
 using KeePassLib.Serialization;
+using KeePassLib.Translation;
 using KeePassLib.Utility;
 
 namespace KeePass
@@ -47,10 +55,18 @@ namespace KeePass
 		private static Random m_rndGlobal = null;
 		private static int m_nAppMessage = 0;
 		private static MainForm m_formMain = null;
+		private static AppConfigEx m_appConfig = new AppConfigEx();
+		private static KeyProviderPool m_keyProviderPool = new KeyProviderPool();
+		private static FileFormatPool m_fmtPool = new FileFormatPool();
+		private static KPTranslation m_kpTranslation = new KPTranslation();
+		private static TempFilesPool m_tempFilesPool = new TempFilesPool();
 
 		public enum AppMessage
 		{
-			RestoreWindow = 0
+			Null = 0,
+			RestoreWindow = 1,
+			Exit = 2,
+			IpcByFile = 3
 		}
 
 		public static CommandLineArgs CommandLineArgs
@@ -73,6 +89,31 @@ namespace KeePass
 			get { return m_formMain; }
 		}
 
+		public static AppConfigEx Config
+		{
+			get { return m_appConfig; }
+		}
+
+		public static KeyProviderPool KeyProviderPool
+		{
+			get { return m_keyProviderPool; }
+		}
+
+		public static FileFormatPool FileFormatPool
+		{
+			get { return m_fmtPool; }
+		}
+
+		public static KPTranslation Translation
+		{
+			get { return m_kpTranslation; }
+		}
+
+		public static TempFilesPool TempFilesPool
+		{
+			get { return m_tempFilesPool; }
+		}
+
 		/// <summary>
 		/// Main entry point for the application.
 		/// </summary>
@@ -90,39 +131,87 @@ namespace KeePass
 
 			// Set global localized strings
 			PwDatabase.LocalizedAppName = PwDefs.ShortProductName;
-			Kdb4File.DetermineLanguageID();
+			Kdb4File.DetermineLanguageId();
 
-			AppConfigEx.Load();
-			if(AppConfigEx.GetBool(AppDefs.ConfigKeys.EnableLogging))
+			m_appConfig = AppConfigSerializer.Load();
+			if(m_appConfig.Logging.Enabled)
 				AppLogEx.Open(PwDefs.ShortProductName);
+
+			AppPolicy.Current = m_appConfig.Security.Policy.CloneDeep();
 
 			string strHelpFile = UrlUtil.StripExtension(WinUtil.GetExecutable()) +
 				".chm";
 			AppHelp.LocalHelpFile = strHelpFile;
 
+			string strLangFile = m_appConfig.Application.LanguageFile;
+			if((strLangFile != null) && (strLangFile.Length > 0))
+			{
+				strLangFile = UrlUtil.GetFileDirectory(WinUtil.GetExecutable(), true) +
+					strLangFile;
+
+				try
+				{
+					m_kpTranslation = KPTranslation.LoadFromFile(strLangFile);
+
+					KPRes.SetTranslatedStrings(
+						m_kpTranslation.SafeGetStringTableDictionary(
+						"KeePass.Resources.KPRes"));
+					KLRes.SetTranslatedStrings(
+						m_kpTranslation.SafeGetStringTableDictionary(
+						"KeePassLib.Resources.KLRes"));
+				}
+				catch(FileNotFoundException) { } // Ignore
+				catch(Exception) { Debug.Assert(false); }
+			}
+
 			m_cmdLineArgs = new CommandLineArgs(args);
 
 			if(m_cmdLineArgs[AppDefs.CommandLineOptions.FileExtRegister] != null)
 			{
-				ShellUtil.RegisterExtension(AppDefs.FileExtension.FileExt, AppDefs.FileExtension.ExtID,
+				ShellUtil.RegisterExtension(AppDefs.FileExtension.FileExt, AppDefs.FileExtension.ExtId,
 					KPRes.FileExtName, WinUtil.GetExecutable(), PwDefs.ShortProductName, false);
+				MainCleanUp();
 				return;
 			}
 			else if(m_cmdLineArgs[AppDefs.CommandLineOptions.FileExtUnregister] != null)
 			{
-				ShellUtil.UnregisterExtension(AppDefs.FileExtension.FileExt, AppDefs.FileExtension.ExtID);
+				ShellUtil.UnregisterExtension(AppDefs.FileExtension.FileExt, AppDefs.FileExtension.ExtId);
+				MainCleanUp();
+				return;
+			}
+			else if((m_cmdLineArgs[AppDefs.CommandLineOptions.Help] != null) ||
+				(m_cmdLineArgs[AppDefs.CommandLineOptions.HelpLong] != null))
+			{
+				AppHelp.ShowHelp(AppDefs.HelpTopics.CommandLine, null);
+				MainCleanUp();
 				return;
 			}
 
 			try { m_nAppMessage = NativeMethods.RegisterWindowMessage(m_strWndMsgID); }
-			catch(Exception exAppMsg) { MessageService.ShowWarning(exAppMsg); }
+			catch(Exception) { Debug.Assert(false); }
 
-			Mutex mSingleLock = TrySingleInstanceLock();
-			if((mSingleLock == null) && AppConfigEx.GetBool(AppDefs.ConfigKeys.LimitSingleInstance))
+			if(m_cmdLineArgs[AppDefs.CommandLineOptions.ExitAll] != null)
 			{
-				ActivatePreviousInstance();
+				try
+				{
+					NativeMethods.SendMessage((IntPtr)NativeMethods.HWND_BROADCAST,
+						m_nAppMessage, (IntPtr)AppMessage.Exit, IntPtr.Zero);
+				}
+				catch(Exception) { Debug.Assert(false); }
+
+				MainCleanUp();
 				return;
 			}
+
+			Mutex mSingleLock = TrySingleInstanceLock(AppDefs.MutexName, true);
+			if((mSingleLock == null) && m_appConfig.Integration.LimitToSingleInstance)
+			{
+				ActivatePreviousInstance(args);
+				MainCleanUp();
+				return;
+			}
+
+			Mutex mGlobalNotify = TryGlobalInstanceNotify(AppDefs.MutexNameGlobal);
 
 #if DEBUG
 			m_formMain = new MainForm();
@@ -142,17 +231,29 @@ namespace KeePass
 			Debug.Assert(GlobalWindowManager.WindowCount == 0);
 			Debug.Assert(MessageService.CurrentMessageCount == 0);
 
-			AppLogEx.Close();
+			MainCleanUp();
+
+			if(mGlobalNotify != null) { GC.KeepAlive(mGlobalNotify); }
 			if(mSingleLock != null) { GC.KeepAlive(mSingleLock); }
 		}
 
-		private static Mutex TrySingleInstanceLock()
+		private static void MainCleanUp()
 		{
-			bool bCreatedNew;
+			m_tempFilesPool.Clear();
+
+			EntryMenu.Destroy();
+
+			AppLogEx.Close();
+		}
+
+		internal static Mutex TrySingleInstanceLock(string strName, bool bInitiallyOwned)
+		{
+			if(strName == null) throw new ArgumentNullException("strName");
 
 			try
 			{
-				Mutex mSingleLock = new Mutex(true, AppDefs.MutexName, out bCreatedNew);
+				bool bCreatedNew;
+				Mutex mSingleLock = new Mutex(bInitiallyOwned, strName, out bCreatedNew);
 
 				if(!bCreatedNew) return null;
 
@@ -163,19 +264,73 @@ namespace KeePass
 			return null;
 		}
 
-		private static void ActivatePreviousInstance()
+		internal static Mutex TryGlobalInstanceNotify(string strBaseName)
+		{
+			if(strBaseName == null) throw new ArgumentNullException("strBaseName");
+
+			try
+			{
+				string strName = "Global\\" + strBaseName;
+				string strIdentity = Environment.UserDomainName + "\\" +
+					Environment.UserName;
+				MutexSecurity ms = new MutexSecurity();
+
+				MutexAccessRule mar = new MutexAccessRule(strIdentity,
+					MutexRights.FullControl, AccessControlType.Allow);
+				ms.AddAccessRule(mar);
+
+				SecurityIdentifier sid = new SecurityIdentifier(
+					WellKnownSidType.WorldSid, null);
+				mar = new MutexAccessRule(sid, MutexRights.ReadPermissions |
+					MutexRights.Synchronize, AccessControlType.Allow);
+				ms.AddAccessRule(mar);
+
+				bool bCreatedNew;
+				return new Mutex(false, strName, out bCreatedNew, ms);
+			}
+			catch(Exception) { } // Windows 9x and Mono 2.0+ (AddAccessRule) throw
+
+			return null;
+		}
+
+		internal static void DestroyMutex(Mutex m, bool bReleaseFirst)
+		{
+			if(m == null) return;
+
+			if(bReleaseFirst)
+			{
+				try { m.ReleaseMutex(); }
+				catch(Exception) { Debug.Assert(false); }
+			}
+
+			try { m.Close(); }
+			catch(Exception) { Debug.Assert(false); }
+		}
+
+		private static void ActivatePreviousInstance(string[] args)
 		{
 			if(m_nAppMessage == 0) { Debug.Assert(false); return; }
 
 			try
 			{
-				NativeMethods.SendMessage((IntPtr)NativeMethods.HWND_BROADCAST,
-					m_nAppMessage, (IntPtr)AppMessage.RestoreWindow, IntPtr.Zero);
+				if(string.IsNullOrEmpty(m_cmdLineArgs.FileName))
+					NativeMethods.SendMessage((IntPtr)NativeMethods.HWND_BROADCAST,
+						m_nAppMessage, (IntPtr)AppMessage.RestoreWindow, IntPtr.Zero);
+				else
+				{
+					IpcParamEx ipcMsg = new IpcParamEx(IpcUtilEx.CmdOpenDatabase,
+						CommandLineArgs.SafeSerialize(args), null, null, null, null);
+
+					IpcUtilEx.SendGlobalMessage(ipcMsg);
+				}
 			}
-			catch(Exception exActivation)
-			{
-				MessageService.ShowWarning(exActivation);
-			}
+			catch(Exception) { Debug.Assert(false); }
+		}
+
+		// For plugins
+		public static void NotifyUserActivity()
+		{
+			if(Program.MainForm != null) Program.MainForm.NotifyUserActivity();
 		}
 	}
 }

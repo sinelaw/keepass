@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 using KeePassLib.Collections;
 using KeePassLib.Delegates;
@@ -38,7 +39,8 @@ namespace KeePassLib
 		private PwGroup m_pParentGroup = null;
 
 		private PwUuid m_uuid = PwUuid.Zero;
-		private string m_strName = "";
+		private string m_strName = string.Empty;
+		private string m_strNotes = string.Empty;
 
 		private PwIcon m_pwIcon = PwIcon.Folder;
 		private PwUuid m_pwCustomIconID = PwUuid.Zero;
@@ -55,6 +57,8 @@ namespace KeePassLib
 
 		private string m_strDefaultAutoTypeSequence = string.Empty;
 
+		private PwUuid m_pwLastTopVisibleEntry = PwUuid.Zero;
+
 		/// <summary>
 		/// UUID of this group.
 		/// </summary>
@@ -63,7 +67,7 @@ namespace KeePassLib
 			get { return m_uuid; }
 			set
 			{
-				Debug.Assert(value != null); if(value == null) throw new ArgumentNullException();
+				Debug.Assert(value != null); if(value == null) throw new ArgumentNullException("value");
 				
 				m_uuid = value;
 			}
@@ -77,16 +81,30 @@ namespace KeePassLib
 			get { return m_strName; }
 			set
 			{
-				Debug.Assert(value != null); if(value == null) throw new ArgumentNullException();
+				Debug.Assert(value != null); if(value == null) throw new ArgumentNullException("value");
 				
 				m_strName = value;
 			}
 		}
 
 		/// <summary>
+		/// Comments about this group. Cannot be <c>null</c>.
+		/// </summary>
+		public string Notes
+		{
+			get { return m_strNotes; }
+			set
+			{
+				Debug.Assert(value != null); if(value == null) throw new ArgumentNullException("value");
+
+				m_strNotes = value;
+			}
+		}
+
+		/// <summary>
 		/// Icon of the group.
 		/// </summary>
-		public PwIcon IconID
+		public PwIcon IconId
 		{
 			get { return m_pwIcon; }
 			set { m_pwIcon = value; }
@@ -102,7 +120,7 @@ namespace KeePassLib
 			get { return m_pwCustomIconID; }
 			set
 			{
-				Debug.Assert(value != null); if(value == null) throw new ArgumentNullException();
+				Debug.Assert(value != null); if(value == null) throw new ArgumentNullException("value");
 
 				m_pwCustomIconID = value;
 			}
@@ -114,7 +132,9 @@ namespace KeePassLib
 		public PwGroup ParentGroup
 		{
 			get { return m_pParentGroup; }
-			set { Debug.Assert(value != this); m_pParentGroup = value; }
+
+			/// Plugins: use PwGroup.AddGroup instead.
+			internal set { Debug.Assert(value != this); m_pParentGroup = value; }
 		}
 
 		/// <summary>
@@ -214,15 +234,26 @@ namespace KeePassLib
 
 		/// <summary>
 		/// Default auto-type keystroke sequence for all entries in
-		/// this group.
+		/// this group. This property can be an empty string, which
+		/// means that the value should be inherited from the parent.
 		/// </summary>
 		public string DefaultAutoTypeSequence
 		{
 			get { return m_strDefaultAutoTypeSequence; }
 			set
 			{
-				Debug.Assert(value != null); if(value == null) throw new ArgumentNullException();
+				Debug.Assert(value != null); if(value == null) throw new ArgumentNullException("value");
 				m_strDefaultAutoTypeSequence = value;
+			}
+		}
+
+		public PwUuid LastTopVisibleEntry
+		{
+			get { return m_pwLastTopVisibleEntry; }
+			set
+			{
+				Debug.Assert(value != null); if(value == null) throw new ArgumentNullException("value");
+				m_pwLastTopVisibleEntry = value;
 			}
 		}
 
@@ -236,11 +267,11 @@ namespace KeePassLib
 		/// <summary>
 		/// Construct a new, empty group.
 		/// </summary>
-		/// <param name="bCreateNewUUID">Create a new UUID for this group.</param>
+		/// <param name="bCreateNewUuid">Create a new UUID for this group.</param>
 		/// <param name="bSetTimes">Set creation, last access and last modification times to the current time.</param>
-		public PwGroup(bool bCreateNewUUID, bool bSetTimes)
+		public PwGroup(bool bCreateNewUuid, bool bSetTimes)
 		{
-			if(bCreateNewUUID) m_uuid = new PwUuid(true);
+			if(bCreateNewUuid) m_uuid = new PwUuid(true);
 
 			if(bSetTimes)
 			{
@@ -251,21 +282,21 @@ namespace KeePassLib
 		/// <summary>
 		/// Construct a new group.
 		/// </summary>
-		/// <param name="bCreateNewUUID">Create a new UUID for this group.</param>
+		/// <param name="bCreateNewUuid">Create a new UUID for this group.</param>
 		/// <param name="bSetTimes">Set creation, last access and last modification times to the current time.</param>
 		/// <param name="strName">Name of the new group.</param>
 		/// <param name="pwIcon">Icon of the new group.</param>
-		public PwGroup(bool bCreateNewUUID, bool bSetTimes, string strName, PwIcon pwIcon)
+		public PwGroup(bool bCreateNewUuid, bool bSetTimes, string strName, PwIcon pwIcon)
 		{
-			if(bCreateNewUUID) m_uuid = new PwUuid(true);
+			if(bCreateNewUuid) m_uuid = new PwUuid(true);
 
 			if(bSetTimes)
 			{
 				m_tCreation = m_tLastMod = m_tLastAccess = DateTime.Now;
-				// m_tExpire == PwDefs.DtInfinity
 			}
 
 			if(strName != null) m_strName = strName;
+
 			m_pwIcon = pwIcon;
 		}
 
@@ -278,28 +309,31 @@ namespace KeePassLib
 		{
 			PwGroup pg = new PwGroup(false, false);
 
-			pg.m_listGroups = this.m_listGroups.CloneDeep();
-			pg.m_listEntries = this.m_listEntries.CloneDeep();
-			pg.m_pParentGroup = this.m_pParentGroup;
+			pg.m_listGroups = m_listGroups.CloneDeep();
+			pg.m_listEntries = m_listEntries.CloneDeep();
+			pg.m_pParentGroup = m_pParentGroup;
 
-			pg.m_uuid = this.m_uuid; // PwUUID is immutable
+			pg.m_uuid = m_uuid; // PwUUID is immutable
 
-			pg.m_strName = this.m_strName;
+			pg.m_strName = m_strName;
+			pg.m_strNotes = m_strNotes;
 
-			pg.m_pwIcon = this.m_pwIcon;
-			pg.m_pwCustomIconID = this.m_pwCustomIconID;
+			pg.m_pwIcon = m_pwIcon;
+			pg.m_pwCustomIconID = m_pwCustomIconID;
 
-			pg.m_tCreation = this.m_tCreation;
-			pg.m_tExpire = this.m_tExpire;
-			pg.m_tLastAccess = this.m_tLastAccess;
-			pg.m_tLastMod = this.m_tLastMod;
-			pg.m_bExpires = this.m_bExpires;
-			pg.m_uUsageCount = this.m_uUsageCount;
+			pg.m_tCreation = m_tCreation;
+			pg.m_tExpire = m_tExpire;
+			pg.m_tLastAccess = m_tLastAccess;
+			pg.m_tLastMod = m_tLastMod;
+			pg.m_bExpires = m_bExpires;
+			pg.m_uUsageCount = m_uUsageCount;
 
-			pg.m_bIsExpanded = this.m_bIsExpanded;
-			pg.m_bVirtual = this.m_bVirtual;
+			pg.m_bIsExpanded = m_bIsExpanded;
+			pg.m_bVirtual = m_bVirtual;
 
-			pg.m_strDefaultAutoTypeSequence = this.m_strDefaultAutoTypeSequence;
+			pg.m_strDefaultAutoTypeSequence = m_strDefaultAutoTypeSequence;
+
+			pg.m_pwLastTopVisibleEntry = m_pwLastTopVisibleEntry;
 
 			return pg;
 		}
@@ -504,7 +538,7 @@ namespace KeePassLib
 				return true;
 			};
 
-			return PreOrderTraverseTree(null, eh);
+			return this.PreOrderTraverseTree(null, eh);
 		}
 
 		/// <summary>
@@ -515,90 +549,112 @@ namespace KeePassLib
 		/// be stored.</param>
 		public void SearchEntries(SearchParameters searchParams, PwObjectList<PwEntry> listStorage)
 		{
-			Debug.Assert(searchParams != null); if(searchParams == null) throw new ArgumentNullException();
-			Debug.Assert(listStorage != null); if(listStorage == null) throw new ArgumentNullException();
+			Debug.Assert(searchParams != null); if(searchParams == null) throw new ArgumentNullException("searchParams");
+			Debug.Assert(listStorage != null); if(listStorage == null) throw new ArgumentNullException("listStorage");
 
-			string strSearch = searchParams.SearchText;
-			Debug.Assert(strSearch != null); if(strSearch == null) throw new ArgumentNullException();
+			string strSearch = searchParams.SearchString;
+			Debug.Assert(strSearch != null); if(strSearch == null) throw new ArgumentException();
 
-			StringComparison scType = searchParams.StringCompare;
+			StringComparison scType = searchParams.ComparisonMode;
+			Regex rx = null;
+			EntryHandler eh = null;
 
 			bool bTitle = searchParams.SearchInTitles;
 			bool bUserName = searchParams.SearchInUserNames;
 			bool bPassword = searchParams.SearchInPasswords;
 			bool bUrl = searchParams.SearchInUrls;
 			bool bNotes = searchParams.SearchInNotes;
+			bool bOther = searchParams.SearchInOther;
+			bool bUuids = searchParams.SearchInUuids;
+			bool bExcludeExpired = searchParams.ExcludeExpired;
 
-			EntryHandler eh;
-			if(searchParams.SearchInAllStrings)
+			DateTime dtNow = DateTime.Now;
+
+			if(searchParams.RegularExpression)
 			{
-				if(strSearch.Length <= 0)
+				RegexOptions ro = RegexOptions.Compiled;
+				if((scType == StringComparison.CurrentCultureIgnoreCase) ||
+					(scType == StringComparison.InvariantCultureIgnoreCase) ||
+					(scType == StringComparison.OrdinalIgnoreCase))
 				{
-					eh = delegate(PwEntry pwe)
-					{
-						listStorage.Add(pwe);
-						return true;
-					};
+					ro |= RegexOptions.IgnoreCase;
 				}
-				else // strSearch.Length > 0
-				{
-					eh = delegate(PwEntry pwe)
-					{
-						foreach(KeyValuePair<string, ProtectedString> kvp in pwe.Strings)
-						{
-							if(kvp.Value.ReadString().IndexOf(strSearch, scType) >= 0)
-							{
-								listStorage.Add(pwe);
-								return true;
-							}
-						}
 
-						return true;
-					};
-				}
+				rx = new Regex(strSearch, ro);
 			}
-			else // searchParams.SearchInAllStrings == false
+
+			if(strSearch.Length <= 0) // Report all
 			{
-				eh = delegate(PwEntry pwe)
+				eh = delegate(PwEntry pe)
 				{
-					foreach(KeyValuePair<string, ProtectedString> kvp in pwe.Strings)
+					if(bExcludeExpired && pe.Expires && (dtNow > pe.ExpiryTime))
+						return true; // Skip
+
+					listStorage.Add(pe);
+					return true;
+				};
+			}
+			else
+			{
+				eh = delegate(PwEntry pe)
+				{
+					if(bExcludeExpired && pe.Expires && (dtNow > pe.ExpiryTime))
+						return true; // Skip
+
+					uint uInitialResults = listStorage.UCount;
+
+					foreach(KeyValuePair<string, ProtectedString> kvp in pe.Strings)
 					{
-						if(bTitle && kvp.Key.Equals(PwDefs.TitleField))
-						{
-							if(kvp.Value.ReadString().IndexOf(strSearch, scType) >= 0)
-							{ listStorage.Add(pwe); return true; }
-						}
+						string strKey = kvp.Key;
 
-						if(bUserName && kvp.Key.Equals(PwDefs.UserNameField))
-						{
-							if(kvp.Value.ReadString().IndexOf(strSearch, scType) >= 0)
-							{ listStorage.Add(pwe); return true; }
-						}
+						if(strKey == PwDefs.TitleField)
+							SearchEvalAdd(bTitle, strSearch, kvp.Value.ReadString(),
+								scType, rx, pe, listStorage);
+						else if(strKey == PwDefs.UserNameField)
+							SearchEvalAdd(bUserName, strSearch, kvp.Value.ReadString(),
+								scType, rx, pe, listStorage);
+						else if(strKey == PwDefs.PasswordField)
+							SearchEvalAdd(bPassword, strSearch, kvp.Value.ReadString(),
+								scType, rx, pe, listStorage);
+						else if(strKey == PwDefs.UrlField)
+							SearchEvalAdd(bUrl, strSearch, kvp.Value.ReadString(),
+								scType, rx, pe, listStorage);
+						else if(strKey == PwDefs.NotesField)
+							SearchEvalAdd(bNotes, strSearch, kvp.Value.ReadString(),
+								scType, rx, pe, listStorage);
+						else if(bOther)
+							SearchEvalAdd(true, strSearch, kvp.Value.ReadString(),
+								scType, rx, pe, listStorage);
 
-						if(bPassword && kvp.Key.Equals(PwDefs.PasswordField))
-						{
-							if(kvp.Value.ReadString().IndexOf(strSearch, scType) >= 0)
-							{ listStorage.Add(pwe); return true; }
-						}
-
-						if(bUrl && kvp.Key.Equals(PwDefs.UrlField))
-						{
-							if(kvp.Value.ReadString().IndexOf(strSearch, scType) >= 0)
-							{ listStorage.Add(pwe); return true; }
-						}
-
-						if(bNotes && kvp.Key.Equals(PwDefs.NotesField))
-						{
-							if(kvp.Value.ReadString().IndexOf(strSearch, scType) >= 0)
-							{ listStorage.Add(pwe); return true; }
-						}
+						// An entry can match only once => break if we have added it
+						if(listStorage.UCount > uInitialResults) break;
 					}
+
+					if((listStorage.UCount == uInitialResults) && bUuids)
+						SearchEvalAdd(true, strSearch, pe.Uuid.ToHexString(),
+							scType, rx, pe, listStorage);
 
 					return true;
 				};
 			}
 
 			PreOrderTraverseTree(null, eh);
+		}
+
+		private static void SearchEvalAdd(bool bIf, string strSearch, string strDataField,
+			StringComparison scType, Regex rx, PwEntry pe, PwObjectList<PwEntry> lResults)
+		{
+			if(bIf == false) return;
+
+			if(rx == null)
+			{
+				if(strDataField.IndexOf(strSearch, scType) >= 0)
+					lResults.Add(pe);
+			}
+			else // Regular expression
+			{
+				if(rx.IsMatch(strDataField)) lResults.Add(pe);
+			}
 		}
 
 		/// <summary>
@@ -641,7 +697,7 @@ namespace KeePassLib
 		/// it doesn't exist and shouldn't be created.</returns>
 		public PwGroup FindCreateGroup(string strName, bool bCreateIfNotFound)
 		{
-			Debug.Assert(strName != null); if(strName == null) throw new ArgumentNullException();
+			Debug.Assert(strName != null); if(strName == null) throw new ArgumentNullException("strName");
 
 			foreach(PwGroup pg in m_listGroups)
 			{
@@ -651,8 +707,7 @@ namespace KeePassLib
 			if(!bCreateIfNotFound) return null;
 
 			PwGroup pgNew = new PwGroup(true, true, strName, PwIcon.Folder);
-			pgNew.ParentGroup = this;
-			m_listGroups.Add(pgNew);
+			AddGroup(pgNew, true);
 			return pgNew;
 		}
 
@@ -726,17 +781,18 @@ namespace KeePassLib
 		/// if it is newer than the current one.</param>
 		public void AssignProperties(PwGroup pgTemplate, bool bOnlyIfNewer)
 		{
-			Debug.Assert(pgTemplate != null); if(pgTemplate == null) throw new ArgumentNullException();
+			Debug.Assert(pgTemplate != null); if(pgTemplate == null) throw new ArgumentNullException("pgTemplate");
 
 			// Template UUID should be the same as the current one
 			Debug.Assert(m_uuid.EqualsValue(pgTemplate.m_uuid));
 
 			if(bOnlyIfNewer)
 			{
-				if(pgTemplate.m_tLastMod < this.m_tLastMod) return;
+				if(pgTemplate.m_tLastMod < m_tLastMod) return;
 			}
 
 			m_strName = pgTemplate.m_strName;
+			m_strNotes = pgTemplate.m_strNotes;
 
 			m_pwIcon = pgTemplate.m_pwIcon;
 			m_pwCustomIconID = pgTemplate.m_pwCustomIconID;
@@ -747,6 +803,8 @@ namespace KeePassLib
 			m_tExpire = pgTemplate.m_tExpire;
 			m_bExpires = pgTemplate.m_bExpires;
 			m_uUsageCount = pgTemplate.m_uUsageCount;
+
+			m_pwLastTopVisibleEntry = pgTemplate.m_pwLastTopVisibleEntry;
 		}
 
 		/// <summary>
@@ -812,8 +870,7 @@ namespace KeePassLib
 				{
 					PwGroup pg = new PwGroup(true, true, vGroups[nGroup], PwIcon.Folder);
 
-					pg.ParentGroup = pgContainer;
-					pgContainer.Groups.Add(pg);
+					pgContainer.AddGroup(pg, true);
 
 					pgContainer = pg;
 				}
@@ -838,6 +895,76 @@ namespace KeePassLib
 			}
 
 			return uLevel;
+		}
+
+		public string GetAutoTypeSequenceInherited()
+		{
+			if(m_strDefaultAutoTypeSequence.Length > 0)
+				return m_strDefaultAutoTypeSequence;
+
+			if(m_pParentGroup != null)
+				return m_pParentGroup.GetAutoTypeSequenceInherited();
+
+			return string.Empty;
+		}
+
+		public PwObjectList<PwEntry> GetEntries(bool bIncludeSubGroupEntries)
+		{
+			if(bIncludeSubGroupEntries == false)
+				return m_listEntries;
+
+			PwObjectList<PwEntry> list = m_listEntries.CloneShallow();
+			foreach(PwGroup pgSub in m_listGroups)
+			{
+				list.Add(pgSub.GetEntries(true));
+			}
+
+			return list;
+		}
+
+		public bool IsContainedIn(PwGroup pgContainer)
+		{
+			PwGroup pgCur = m_pParentGroup;
+			while(pgCur != null)
+			{
+				if(pgCur == pgContainer) return true;
+
+				pgCur = pgCur.m_pParentGroup;
+			}
+
+			return false;
+		}
+
+		/// <summary>
+		/// Add a subgroup to this group.
+		/// </summary>
+		/// <param name="subGroup">Group to be added. Must not be <c>null</c>.</param>
+		/// <param name="bTakeOwnership">If this parameter is <c>true</c>, the
+		/// parent group reference of the subgroup will be set to the current
+		/// group (i.e. the current group takes ownership of the subgroup).</param>
+		public void AddGroup(PwGroup subGroup, bool bTakeOwnership)
+		{
+			if(subGroup == null) throw new ArgumentNullException("subGroup");
+
+			m_listGroups.Add(subGroup);
+
+			if(bTakeOwnership) subGroup.ParentGroup = this;
+		}
+
+		/// <summary>
+		/// Add an entry to this group.
+		/// </summary>
+		/// <param name="pe">Entry to be added. Must not be <c>null</c>.</param>
+		/// <param name="bTakeOwnership">If this parameter is <c>true</c>, the
+		/// parent group reference of the entry will be set to the current
+		/// group (i.e. the current group takes ownership of the entry).</param>
+		public void AddEntry(PwEntry pe, bool bTakeOwnership)
+		{
+			if(pe == null) throw new ArgumentNullException("pe");
+
+			m_listEntries.Add(pe);
+
+			if(bTakeOwnership) pe.ParentGroup = this;
 		}
 	}
 }

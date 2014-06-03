@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,11 +23,13 @@ using System.Text;
 using System.Drawing;
 using System.Diagnostics;
 
+using KeePass.DataExchange;
 using KeePass.Forms;
 using KeePass.Util;
 
 using KeePassLib;
 using KeePassLib.Cryptography.Cipher;
+using KeePassLib.Keys;
 
 namespace KeePass.Plugins
 {
@@ -53,5 +55,9 @@ namespace KeePass.Plugins
 		/// an encryption algorithm, use this pool to register it.
 		/// </summary>
 		CipherPool CipherPool { get; }
+
+		KeyProviderPool KeyProviderPool { get; }
+
+		FileFormatPool FileFormatPool { get; }
 	}
 }

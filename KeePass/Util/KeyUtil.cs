@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,32 +33,39 @@ namespace KeePass.Util
 {
 	public static class KeyUtil
 	{
-		public static CompositeKey KeyFromCommandLine()
+		public static CompositeKey KeyFromCommandLine(CommandLineArgs args)
 		{
+			if(args == null) throw new ArgumentNullException("args");
+
 			CompositeKey cmpKey = new CompositeKey();
-
-			string strPassword = Program.CommandLineArgs[AppDefs.CommandLineOptions.Password];
-			string strKeyFile = Program.CommandLineArgs[AppDefs.CommandLineOptions.KeyFile];
-			string strUserAcc = Program.CommandLineArgs[AppDefs.CommandLineOptions.UserAccount];
-
-			if((strPassword == null) && (strKeyFile == null))
-				return null;
+			string strPassword = args[AppDefs.CommandLineOptions.Password];
+			string strKeyFile = args[AppDefs.CommandLineOptions.KeyFile];
+			string strUserAcc = args[AppDefs.CommandLineOptions.UserAccount];
 
 			if(strPassword != null)
 				cmpKey.AddUserKey(new KcpPassword(strPassword));
+			
 			if(strKeyFile != null)
 			{
 				try { cmpKey.AddUserKey(new KcpKeyFile(strKeyFile)); }
 				catch(Exception exKey)
 				{
-					MessageService.ShowWarning(strKeyFile, exKey);
+					MessageService.ShowWarning(strKeyFile, KPRes.KeyFileError, exKey);
 					return null;
 				}
 			}
+			
 			if(strUserAcc != null)
-				cmpKey.AddUserKey(new KcpUserAccount());
+			{
+				try { cmpKey.AddUserKey(new KcpUserAccount()); }
+				catch(Exception exUA)
+				{
+					MessageService.ShowWarning(exUA);
+					return null;
+				}
+			}
 
-			return cmpKey;
+			return ((cmpKey.UserKeyCount > 0) ? cmpKey : null);
 		}
 	}
 }

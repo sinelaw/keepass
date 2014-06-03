@@ -53,7 +53,7 @@
 			this.m_btnOK.Location = new System.Drawing.Point(462, 383);
 			this.m_btnOK.Name = "m_btnOK";
 			this.m_btnOK.Size = new System.Drawing.Size(75, 23);
-			this.m_btnOK.TabIndex = 2;
+			this.m_btnOK.TabIndex = 1;
 			this.m_btnOK.Text = "&OK";
 			this.m_btnOK.UseVisualStyleBackColor = true;
 			this.m_btnOK.Click += new System.EventHandler(this.OnBtnOK);
@@ -64,7 +64,7 @@
 			this.m_btnCancel.Location = new System.Drawing.Point(543, 383);
 			this.m_btnCancel.Name = "m_btnCancel";
 			this.m_btnCancel.Size = new System.Drawing.Size(75, 23);
-			this.m_btnCancel.TabIndex = 3;
+			this.m_btnCancel.TabIndex = 2;
 			this.m_btnCancel.Text = "&Cancel";
 			this.m_btnCancel.UseVisualStyleBackColor = true;
 			this.m_btnCancel.Click += new System.EventHandler(this.OnBtnCancel);
@@ -106,6 +106,7 @@
 			this.m_pbGenerated.Size = new System.Drawing.Size(148, 13);
 			this.m_pbGenerated.Style = System.Windows.Forms.ProgressBarStyle.Continuous;
 			this.m_pbGenerated.TabIndex = 2;
+			this.m_pbGenerated.TabStop = false;
 			this.m_pbGenerated.Value = 0;
 			// 
 			// m_lblStatus
@@ -137,9 +138,9 @@
 			this.m_grpMouse.Location = new System.Drawing.Point(12, 66);
 			this.m_grpMouse.Name = "m_grpMouse";
 			this.m_grpMouse.Size = new System.Drawing.Size(301, 311);
-			this.m_grpMouse.TabIndex = 1;
+			this.m_grpMouse.TabIndex = 3;
 			this.m_grpMouse.TabStop = false;
-			this.m_grpMouse.Text = "Random Mouse Input";
+			this.m_grpMouse.Text = "Random mouse input";
 			// 
 			// m_grpKeyboard
 			// 
@@ -151,7 +152,7 @@
 			this.m_grpKeyboard.Size = new System.Drawing.Size(299, 311);
 			this.m_grpKeyboard.TabIndex = 0;
 			this.m_grpKeyboard.TabStop = false;
-			this.m_grpKeyboard.Text = "Random Keyboard Input";
+			this.m_grpKeyboard.Text = "Random keyboard input";
 			// 
 			// m_lblKeysDesc
 			// 
@@ -174,6 +175,7 @@
 			// 
 			// m_tbEdit
 			// 
+			this.m_tbEdit.AcceptsReturn = true;
 			this.m_tbEdit.Location = new System.Drawing.Point(6, 47);
 			this.m_tbEdit.Multiline = true;
 			this.m_tbEdit.Name = "m_tbEdit";
@@ -200,8 +202,8 @@
 			this.ShowInTaskbar = false;
 			this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
 			this.Text = "<>";
-			this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.OnFormClosed);
 			this.Load += new System.EventHandler(this.OnFormLoad);
+			this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.OnFormClosed);
 			((System.ComponentModel.ISupportInitialize)(this.m_picRandom)).EndInit();
 			((System.ComponentModel.ISupportInitialize)(this.m_bannerImage)).EndInit();
 			this.m_grpMouse.ResumeLayout(false);

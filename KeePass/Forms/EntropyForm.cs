@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ using System.Diagnostics;
 using KeePass.UI;
 using KeePass.Resources;
 
-using KeePassLib.Cryptography;
+using KeePassLib.Cryptography.PasswordGenerator;
 using KeePassLib.Utility;
 
 namespace KeePass.Forms
@@ -46,9 +46,9 @@ namespace KeePass.Forms
 			get { return m_pbEntropy; }
 		}
 
-		public static byte[] CollectEntropyIfEnabled(PasswordGenerationOptions opt)
+		public static byte[] CollectEntropyIfEnabled(PwProfile pp)
 		{
-			if(opt.CollectUserEntropy == false) return null;
+			if(pp.CollectUserEntropy == false) return null;
 
 			EntropyForm ef = new EntropyForm();
 			if(ef.ShowDialog() == DialogResult.OK)
@@ -60,6 +60,7 @@ namespace KeePass.Forms
 		public EntropyForm()
 		{
 			InitializeComponent();
+			Program.Translation.ApplyTo(this);
 		}
 
 		private void OnFormLoad(object sender, EventArgs e)
@@ -67,7 +68,7 @@ namespace KeePass.Forms
 			GlobalWindowManager.AddWindow(this);
 
 			m_bannerImage.Image = BannerFactory.CreateBanner(m_bannerImage.Width,
-				m_bannerImage.Height, BannerFactory.BannerStyle.Default,
+				m_bannerImage.Height, BannerStyle.Default,
 				Properties.Resources.B48x48_Binary, KPRes.EntropyTitle,
 				KPRes.EntropyDesc);
 			this.Icon = Properties.Resources.KeePass;

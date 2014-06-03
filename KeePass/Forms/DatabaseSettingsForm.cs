@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@ using KeePass.UI;
 using KeePass.Resources;
 
 using KeePassLib;
+using KeePassLib.Delegates;
 using KeePassLib.Cryptography.Cipher;
 using KeePassLib.Keys;
 using KeePassLib.Security;
@@ -45,27 +46,30 @@ namespace KeePass.Forms
 		public DatabaseSettingsForm()
 		{
 			InitializeComponent();
+			Program.Translation.ApplyTo(this);
 		}
 
 		public void InitEx(bool bCreatingNew, PwDatabase pwDatabase)
 		{
 			m_bCreatingNew = bCreatingNew;
 
-			Debug.Assert(pwDatabase != null); if(pwDatabase == null) throw new ArgumentNullException();
+			Debug.Assert(pwDatabase != null); if(pwDatabase == null) throw new ArgumentNullException("pwDatabase");
 			m_pwDatabase = pwDatabase;
 		}
 
 		private void OnFormLoad(object sender, EventArgs e)
 		{
-			Debug.Assert(m_pwDatabase != null); if(m_pwDatabase == null) throw new ArgumentNullException();
+			Debug.Assert(m_pwDatabase != null); if(m_pwDatabase == null) throw new InvalidOperationException();
 
 			GlobalWindowManager.AddWindow(this);
 
 			m_bannerImage.Image = BannerFactory.CreateBanner(m_bannerImage.Width,
-				m_bannerImage.Height, BannerFactory.BannerStyle.Default,
+				m_bannerImage.Height, BannerStyle.Default,
 				Properties.Resources.B48x48_Ark, KPRes.DatabaseSettings,
 				KPRes.DatabaseSettingsDesc);
 			this.Icon = Properties.Resources.KeePass;
+
+			m_ttRect.SetToolTip(m_lnkCompute1SecDelay, KPRes.TransformationRounds1SecHint);
 
 			m_tbDbName.PromptText = KPRes.DatabaseNamePrompt;
 			m_tbDbDesc.PromptText = KPRes.DatabaseDescPrompt;
@@ -93,10 +97,11 @@ namespace KeePass.Forms
 			m_lbMemProt.Items.Add(KPRes.Title, m_pwDatabase.MemoryProtection.ProtectTitle);
 			m_lbMemProt.Items.Add(KPRes.UserName, m_pwDatabase.MemoryProtection.ProtectUserName);
 			m_lbMemProt.Items.Add(KPRes.Password, m_pwDatabase.MemoryProtection.ProtectPassword);
-			m_lbMemProt.Items.Add(KPRes.URL, m_pwDatabase.MemoryProtection.ProtectUrl);
+			m_lbMemProt.Items.Add(KPRes.Url, m_pwDatabase.MemoryProtection.ProtectUrl);
 			m_lbMemProt.Items.Add(KPRes.Notes, m_pwDatabase.MemoryProtection.ProtectNotes);
 
-			m_cbAutoEnableHiding.Checked = m_pwDatabase.MemoryProtection.AutoEnableVisualHiding;
+			// m_cbAutoEnableHiding.Checked = m_pwDatabase.MemoryProtection.AutoEnableVisualHiding;
+			// m_cbAutoEnableHiding.Checked = false;
 
 			if(m_pwDatabase.Compression == PwCompressionAlgorithm.None)
 				m_rbNone.Checked = true;
@@ -135,7 +140,7 @@ namespace KeePass.Forms
 			m_pwDatabase.MemoryProtection.ProtectNotes = UpdateMemoryProtection(4,
 				m_pwDatabase.MemoryProtection.ProtectNotes, PwDefs.NotesField);
 
-			m_pwDatabase.MemoryProtection.AutoEnableVisualHiding = m_cbAutoEnableHiding.Checked;
+			// m_pwDatabase.MemoryProtection.AutoEnableVisualHiding = m_cbAutoEnableHiding.Checked;
 		}
 
 		private bool UpdateMemoryProtection(int nIndex, bool bOldSetting, string strFieldID)
@@ -148,13 +153,14 @@ namespace KeePass.Forms
 			}
 
 #if DEBUG
-			KeePassLib.Delegates.GroupHandler gh = delegate(PwGroup pg)
+			GroupHandler gh = delegate(PwGroup pg)
 			{
 				return true;
 			};
-			KeePassLib.Delegates.EntryHandler eh = delegate(PwEntry pe)
+			EntryHandler eh = delegate(PwEntry pe)
 			{
-				Debug.Assert(pe.Strings.Get(strFieldID).IsProtected == bNewProt);
+				ProtectedString ps = pe.Strings.Get(strFieldID);
+				if(ps != null) { Debug.Assert(ps.IsProtected == bNewProt); }
 				return true;
 			};
 			Debug.Assert(m_pwDatabase.RootGroup.TraverseTree(TraversalMethod.PreOrder, gh, eh));

@@ -1,8 +1,8 @@
-﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="3.5">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProductVersion>8.0.50727</ProductVersion>
+    <ProductVersion>9.0.30729</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{DC15F71A-2117-4DEF-8C10-AA355B5E5979}</ProjectGuid>
     <OutputType>Library</OutputType>
@@ -19,13 +19,19 @@
     </FormFactorID>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>KeePassLibSD.pfx</AssemblyOriginatorKeyFile>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <OldToolsVersion>2.0</OldToolsVersion>
+    <NativePlatformName>Pocket PC 2003</NativePlatformName>
+    <UpgradeBackupLocation>
+    </UpgradeBackupLocation>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>..\Build\KeePassLibSD\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;COMPACT_FRAMEWORK_V20;KeePassLibSD</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;COMPACT_FRAMEWORK_V20;KeePassLibSD;NETCF_2_0</DefineConstants>
     <NoStdLib>true</NoStdLib>
     <NoConfig>true</NoConfig>
     <ErrorReport>prompt</ErrorReport>
@@ -37,7 +43,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\Build\KeePassLibSD\Release\</OutputPath>
-    <DefineConstants>TRACE;COMPACT_FRAMEWORK_V20;KeePassLibSD</DefineConstants>
+    <DefineConstants>TRACE;COMPACT_FRAMEWORK_V20;KeePassLibSD;NETCF_2_0</DefineConstants>
     <NoStdLib>true</NoStdLib>
     <NoConfig>true</NoConfig>
     <ErrorReport>prompt</ErrorReport>
@@ -81,8 +87,23 @@
     <Compile Include="..\KeePassLib\Cryptography\CryptoRandomStream.cs">
       <Link>Cryptography\CryptoRandomStream.cs</Link>
     </Compile>
-    <Compile Include="..\KeePassLib\Cryptography\PasswordGenerator.cs">
-      <Link>Cryptography\PasswordGenerator.cs</Link>
+    <Compile Include="..\KeePassLib\Cryptography\HashingStreamEx.cs">
+      <Link>Cryptography\HashingStreamEx.cs</Link>
+    </Compile>
+    <Compile Include="..\KeePassLib\Cryptography\PasswordGenerator\CharSetBasedGenerator.cs">
+      <Link>Cryptography\PasswordGenerator\CharSetBasedGenerator.cs</Link>
+    </Compile>
+    <Compile Include="..\KeePassLib\Cryptography\PasswordGenerator\PatternBasedGenerator.cs">
+      <Link>Cryptography\PasswordGenerator\PatternBasedGenerator.cs</Link>
+    </Compile>
+    <Compile Include="..\KeePassLib\Cryptography\PasswordGenerator\PwCharSet.cs">
+      <Link>Cryptography\PasswordGenerator\PwCharSet.cs</Link>
+    </Compile>
+    <Compile Include="..\KeePassLib\Cryptography\PasswordGenerator\PwGenerator.cs">
+      <Link>Cryptography\PasswordGenerator\PwGenerator.cs</Link>
+    </Compile>
+    <Compile Include="..\KeePassLib\Cryptography\PasswordGenerator\PwProfile.cs">
+      <Link>Cryptography\PasswordGenerator\PwProfile.cs</Link>
     </Compile>
     <Compile Include="..\KeePassLib\Cryptography\QualityEstimation.cs">
       <Link>Cryptography\QualityEstimation.cs</Link>
@@ -111,6 +132,9 @@
     <Compile Include="..\KeePassLib\Keys\IUserKey.cs">
       <Link>Keys\IUserKey.cs</Link>
     </Compile>
+    <Compile Include="..\KeePassLib\Keys\KcpCustomKey.cs">
+      <Link>Keys\KcpCustomKey.cs</Link>
+    </Compile>
     <Compile Include="..\KeePassLib\Keys\KcpKeyFile.cs">
       <Link>Keys\KcpKeyFile.cs</Link>
     </Compile>
@@ -119,6 +143,12 @@
     </Compile>
     <Compile Include="..\KeePassLib\Keys\KcpUserAccount.cs">
       <Link>Keys\KcpUserAccount.cs</Link>
+    </Compile>
+    <Compile Include="..\KeePassLib\Keys\KeyProvider.cs">
+      <Link>Keys\KeyProvider.cs</Link>
+    </Compile>
+    <Compile Include="..\KeePassLib\Keys\KeyProviderPool.cs">
+      <Link>Keys\KeyProviderPool.cs</Link>
     </Compile>
     <Compile Include="..\KeePassLib\Keys\UserKeyType.cs">
       <Link>Keys\UserKeyType.cs</Link>
@@ -192,8 +222,23 @@
     <Compile Include="..\KeePassLib\Serialization\OldFormatException.cs">
       <Link>Serialization\OldFormatException.cs</Link>
     </Compile>
-    <Compile Include="..\KeePassLib\Utility\AppConfigEx.cs">
-      <Link>Utility\AppConfigEx.cs</Link>
+    <Compile Include="..\KeePassLib\Translation\KPControlCustomization.cs">
+      <Link>Translation\KPControlCustomization.cs</Link>
+    </Compile>
+    <Compile Include="..\KeePassLib\Translation\KPFormCustomization.cs">
+      <Link>Translation\KPFormCustomization.cs</Link>
+    </Compile>
+    <Compile Include="..\KeePassLib\Translation\KPStringTable.cs">
+      <Link>Translation\KPStringTable.cs</Link>
+    </Compile>
+    <Compile Include="..\KeePassLib\Translation\KPStringTableItem.cs">
+      <Link>Translation\KPStringTableItem.cs</Link>
+    </Compile>
+    <Compile Include="..\KeePassLib\Translation\KPTranslation.cs">
+      <Link>Translation\KPTranslation.cs</Link>
+    </Compile>
+    <Compile Include="..\KeePassLib\Translation\KPTranslationProperties.cs">
+      <Link>Translation\KPTranslationProperties.cs</Link>
     </Compile>
     <Compile Include="..\KeePassLib\Utility\AppLogEx.cs">
       <Link>Utility\AppLogEx.cs</Link>
@@ -209,9 +254,6 @@
     </Compile>
     <Compile Include="..\KeePassLib\Utility\TimeUtil.cs">
       <Link>Utility\TimeUtil.cs</Link>
-    </Compile>
-    <Compile Include="..\KeePassLib\Utility\TranslationUtil.cs">
-      <Link>Utility\TranslationUtil.cs</Link>
     </Compile>
     <Compile Include="..\KeePassLib\Utility\UrlUtil.cs">
       <Link>Utility\UrlUtil.cs</Link>
@@ -230,7 +272,6 @@
     <Compile Include="SharpZipLib\Core\FileSystemScanner.cs" />
     <Compile Include="SharpZipLib\Core\INameTransform.cs" />
     <Compile Include="SharpZipLib\Core\IScanFilter.cs" />
-    <Compile Include="SharpZipLib\Core\IScanner.cs" />
     <Compile Include="SharpZipLib\Core\NameFilter.cs" />
     <Compile Include="SharpZipLib\Core\PathFilter.cs" />
     <Compile Include="SharpZipLib\Core\StreamUtils.cs" />
@@ -254,8 +295,10 @@
     <Compile Include="SharpZipLib\Zip\Compression\Streams\InflaterInputStream.cs" />
     <Compile Include="SharpZipLib\Zip\Compression\Streams\OutputWindow.cs" />
     <Compile Include="SharpZipLib\Zip\Compression\Streams\StreamManipulator.cs" />
+    <Compile Include="SharpZipLib\Zip\IEntryFactory.cs" />
     <Compile Include="SharpZipLib\Zip\ZipConstants.cs" />
     <Compile Include="SharpZipLib\Zip\ZipEntry.cs" />
+    <Compile Include="SharpZipLib\Zip\ZipEntryFactory.cs" />
     <Compile Include="SharpZipLib\Zip\ZipException.cs" />
     <Compile Include="SharpZipLib\Zip\ZipExtraData.cs" />
     <Compile Include="SharpZipLib\Zip\ZipFile.cs" />
@@ -284,4 +327,5 @@
   <Target Name="AfterBuild">
   </Target>
   -->
+  <Import Condition="'$(TargetFrameworkVersion)' == 'v3.5'" Project="$(MSBuildBinPath)\Microsoft.CompactFramework.CSharp.targets" />
 </Project>

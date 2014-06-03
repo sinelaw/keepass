@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Diagnostics;
 
@@ -33,6 +34,7 @@ using KeePassLib;
 using KeePassLib.Collections;
 using KeePassLib.Delegates;
 using KeePassLib.Security;
+using KeePassLib.Utility;
 
 namespace KeePass.Forms
 {
@@ -41,10 +43,12 @@ namespace KeePass.Forms
 	/// dialog performs the search itself and returns the result
 	/// in the <c>SearchResultsGroup</c> property.
 	/// </summary>
-	public partial class SearchForm : Form
+	public partial class SearchForm : Form, IGwmWindow
 	{
 		private PwGroup m_pgRoot = null;
 		private PwGroup m_pgResultsGroup = null;
+
+		public bool CanCloseWithoutDataLoss { get { return true; } }
 
 		/// <summary>
 		/// After closing the dialog, this property contains the search results.
@@ -60,6 +64,7 @@ namespace KeePass.Forms
 		public SearchForm()
 		{
 			InitializeComponent();
+			Program.Translation.ApplyTo(this);
 		}
 
 		/// <summary>
@@ -73,88 +78,103 @@ namespace KeePass.Forms
 
 		private void OnFormLoad(object sender, EventArgs e)
 		{
-			Debug.Assert(m_pgRoot != null); if(m_pgRoot == null) throw new ArgumentNullException();
+			Debug.Assert(m_pgRoot != null); if(m_pgRoot == null) throw new InvalidOperationException();
 
-			GlobalWindowManager.AddWindow(this);
+			GlobalWindowManager.AddWindow(this, this);
+
+			string strTitle = KPRes.SearchTitle;
+			if((m_pgRoot != null) && (m_pgRoot.ParentGroup != null))
+				strTitle += " - " + m_pgRoot.Name;
 
 			m_bannerImage.Image = BannerFactory.CreateBanner(m_bannerImage.Width,
-				m_bannerImage.Height, BannerFactory.BannerStyle.Default,
-				Properties.Resources.B48x48_XMag, KPRes.SearchTitle,
+				m_bannerImage.Height, BannerStyle.Default,
+				Properties.Resources.B48x48_XMag, strTitle,
 				KPRes.SearchDesc);
 			this.Icon = Properties.Resources.KeePass;
 
-			m_cbAllFields.Checked = false;
-			m_cbTitle.Checked = m_cbUserName.Checked = m_cbPassword.Checked =
-				m_cbURL.Checked = m_cbNotes.Checked = true;
+			m_cbTitle.Checked = Program.Config.Defaults.SearchParameters.SearchInTitles;
+			m_cbUserName.Checked = Program.Config.Defaults.SearchParameters.SearchInUserNames;
+			m_cbURL.Checked = Program.Config.Defaults.SearchParameters.SearchInUrls;
+			m_cbPassword.Checked = Program.Config.Defaults.SearchParameters.SearchInPasswords;
+			m_cbNotes.Checked = Program.Config.Defaults.SearchParameters.SearchInNotes;
+			m_cbOtherFields.Checked = Program.Config.Defaults.SearchParameters.SearchInOther;
 
-			EnableUserControls();
+			StringComparison sc = Program.Config.Defaults.SearchParameters.ComparisonMode;
+			m_cbCaseSensitive.Checked = ((sc != StringComparison.CurrentCultureIgnoreCase) &&
+				(sc != StringComparison.InvariantCultureIgnoreCase) &&
+				(sc != StringComparison.OrdinalIgnoreCase));
+
+			m_cbRegEx.Checked = Program.Config.Defaults.SearchParameters.RegularExpression;
+			m_cbExcludeExpired.Checked = Program.Config.Defaults.SearchParameters.ExcludeExpired;
+
+			this.ActiveControl = m_tbSearch;
 			m_tbSearch.Focus();
-		}
-
-		private void EnableUserControls()
-		{
-			if(m_cbAllFields.Checked)
-			{
-				m_cbTitle.Checked = m_cbUserName.Checked = m_cbPassword.Checked =
-					m_cbURL.Checked = m_cbNotes.Checked = true;
-
-				m_cbTitle.Enabled = m_cbUserName.Enabled = m_cbPassword.Enabled =
-					m_cbURL.Enabled = m_cbNotes.Enabled = false;
-			}
-			else
-			{
-				m_cbTitle.Enabled = m_cbUserName.Enabled = m_cbPassword.Enabled =
-					m_cbURL.Enabled = m_cbNotes.Enabled = true;
-			}
 		}
 
 		private void OnBtnOK(object sender, EventArgs e)
 		{
-			SearchParameters sp = new SearchParameters();
+			SearchParameters sp = GetSearchParameters(true);
 
-			sp.SearchText = m_tbSearch.Text;
-			sp.SearchInTitles = m_cbTitle.Checked;
-			sp.SearchInUserNames = m_cbUserName.Checked;
-			sp.SearchInPasswords = m_cbPassword.Checked;
-			sp.SearchInUrls = m_cbURL.Checked;
-			sp.SearchInNotes = m_cbNotes.Checked;
-			sp.SearchInAllStrings = m_cbAllFields.Checked;
+			if(sp.RegularExpression) // Validate regular expression
+			{
+				try { new Regex(sp.SearchString); }
+				catch(Exception exReg)
+				{
+					MessageService.ShowWarning(exReg.Message);
+					this.DialogResult = DialogResult.None;
+					return;
+				}
+			}
 
-			sp.StringCompare = m_cbCaseSensitive.Checked ?
-				StringComparison.InvariantCulture :
-				StringComparison.InvariantCultureIgnoreCase;
-
-			string strGroupName = KPRes.SearchGroupName + " (\"" + sp.SearchText + "\" ";
+			string strGroupName = KPRes.SearchGroupName + " (\"" + sp.SearchString + "\" ";
 			strGroupName += KPRes.SearchResultsInSeparator + " ";
 			strGroupName += m_pgRoot.Name + ")";
 			PwGroup pgResults = new PwGroup(true, true, strGroupName, PwIcon.EMailSearch);
 			pgResults.IsVirtual = true;
 
-			PwEntry peDesc = new PwEntry(pgResults, true, true);
-			peDesc.IconID = PwIcon.EMailSearch;
-			pgResults.Entries.Add(peDesc);
 			PwObjectList<PwEntry> listResults = pgResults.Entries;
 
-			m_pgRoot.SearchEntries(sp, listResults);
-
-			string strItemsFound = (listResults.UCount - 1).ToString() + " " + KPRes.SearchItemsFoundSmall;
-			peDesc.Strings.Set(PwDefs.TitleField, new ProtectedString(false, strItemsFound));
+			try { m_pgRoot.SearchEntries(sp, listResults); }
+			catch(Exception exFind) { MessageService.ShowWarning(exFind); }
 
 			m_pgResultsGroup = pgResults;
+
+			sp.SearchString = string.Empty; // Clear for saving
 		}
 
 		private void OnBtnCancel(object sender, EventArgs e)
 		{
-		}
-
-		private void OnCheckedAllFields(object sender, EventArgs e)
-		{
-			EnableUserControls();
+			GetSearchParameters(false);
 		}
 
 		private void OnFormClosed(object sender, FormClosedEventArgs e)
 		{
 			GlobalWindowManager.RemoveWindow(this);
+		}
+
+		private SearchParameters GetSearchParameters(bool bWithText)
+		{
+			SearchParameters sp = Program.Config.Defaults.SearchParameters;
+
+			if(bWithText) sp.SearchString = m_tbSearch.Text;
+			else sp.SearchString = string.Empty;
+
+			sp.RegularExpression = m_cbRegEx.Checked;
+
+			sp.SearchInTitles = m_cbTitle.Checked;
+			sp.SearchInUserNames = m_cbUserName.Checked;
+			sp.SearchInPasswords = m_cbPassword.Checked;
+			sp.SearchInUrls = m_cbURL.Checked;
+			sp.SearchInNotes = m_cbNotes.Checked;
+			sp.SearchInOther = m_cbOtherFields.Checked;
+
+			sp.ComparisonMode = (m_cbCaseSensitive.Checked ?
+				StringComparison.InvariantCulture :
+				StringComparison.InvariantCultureIgnoreCase);
+
+			sp.ExcludeExpired = m_cbExcludeExpired.Checked;
+
+			return sp;
 		}
 	}
 }

@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -107,8 +107,8 @@ namespace KeePass.Plugins
 				}
 				catch(Exception excp)
 				{
-					MessageService.ShowWarning(KPRes.PluginFailedToLoad,
-						fi.FullName, excp);
+					MessageService.ShowWarning(KPRes.PluginFailedToLoad +
+						MessageService.NewLine + fi.FullName, excp);
 				}
 			}
 		}
@@ -121,7 +121,7 @@ namespace KeePass.Plugins
 				if(plugin.Interface != null)
 				{
 					try { plugin.Interface.Terminate(); }
-					catch(Exception) { }
+					catch(Exception) { Debug.Assert(false); }
 				}
 			}
 
@@ -135,7 +135,8 @@ namespace KeePass.Plugins
 
 			string strType = UrlUtil.GetFileName(strFilePath);
 			strType = UrlUtil.StripExtension(strType) + "." +
-				UrlUtil.StripExtension(strType) + "Ext";
+				UrlUtil.GetExtension("." + UrlUtil.StripExtension(strType)) +
+				"Ext";
 
 			ObjectHandle oh = Activator.CreateInstanceFrom(strFilePath, strType);
 			

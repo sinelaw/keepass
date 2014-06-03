@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@ namespace KeePassLib.Serialization
 {
 	public sealed partial class Kdb4File
 	{
+		/*
 		private void ReadXmlDom(Stream readerStream)
 		{
 			XmlDocument doc = new XmlDocument();
@@ -63,6 +64,7 @@ namespace KeePassLib.Serialization
 				else ReadUnknown(xmlChild);
 			}
 		}
+		*/
 
 		private void ReadUnknown(XmlNode xmlNode)
 		{
@@ -104,6 +106,7 @@ namespace KeePassLib.Serialization
 			return null;
 		}
 
+		/*
 		private void ReadMeta(XmlNode xmlNode)
 		{
 			ProcessNode(xmlNode);
@@ -125,6 +128,10 @@ namespace KeePassLib.Serialization
 					ReadMemoryProtection(xmlChild);
 				else if(strName == ElemCustomIcons)
 					ReadCustomIcons(xmlChild);
+				else if(strName == ElemLastSelectedGroup)
+					m_pwDatabase.LastSelectedGroup = ReadUuid(xmlChild);
+				else if(strName == ElemLastTopVisibleGroup)
+					m_pwDatabase.LastTopVisibleGroup = ReadUuid(xmlChild);
 				else ReadUnknown(xmlChild);
 			}
 		}
@@ -237,6 +244,7 @@ namespace KeePassLib.Serialization
 
 				if(strName == ElemUuid) pgStorage.Uuid = ReadUuid(xmlChild);
 				else if(strName == ElemName) pgStorage.Name = ReadString(xmlChild);
+				else if(strName == ElemNotes) pgStorage.Notes = ReadString(xmlChild);
 				else if(strName == ElemIcon) pgStorage.IconID = (PwIcon)ReadUInt(xmlChild, (uint)PwIcon.Key);
 				else if(strName == ElemCustomIconID) pgStorage.CustomIconUuid = ReadUuid(xmlChild);
 				else if(strName == ElemTimes) ReadTimes(xmlChild, pgStorage);
@@ -244,6 +252,8 @@ namespace KeePassLib.Serialization
 					pgStorage.IsExpanded = ReadBool(xmlChild, true);
 				else if(strName == ElemGroupDefaultAutoTypeSeq)
 					pgStorage.DefaultAutoTypeSequence = ReadString(xmlChild);
+				else if(strName == ElemLastTopVisibleEntry)
+					pgStorage.LastTopVisibleEntry = ReadUuid(xmlChild);
 				else if(strName == ElemGroup)
 				{
 					PwGroup pgSub = ReadGroup(xmlChild);
@@ -253,8 +263,7 @@ namespace KeePassLib.Serialization
 				else if(strName == ElemEntry)
 				{
 					PwEntry pe = ReadEntry(xmlChild);
-					pe.ParentGroup = pgStorage;
-					pgStorage.Entries.Add(pe);
+					pgStorage.AddEntry(pe, true);
 				}
 				else ReadUnknown(xmlChild);
 			}
@@ -265,12 +274,13 @@ namespace KeePassLib.Serialization
 
 			return pgStorage;
 		}
+		*/
 
 		private PwEntry ReadEntry(XmlNode xmlNode)
 		{
 			ProcessNode(xmlNode);
 
-			PwEntry pe = new PwEntry(null, false, false);
+			PwEntry pe = new PwEntry(false, false);
 
 			Debug.Assert(Color.Empty.ToArgb() == 0);
 
@@ -280,7 +290,7 @@ namespace KeePassLib.Serialization
 
 				if(strName == ElemUuid) pe.Uuid = ReadUuid(xmlChild);
 				else if(strName == ElemIcon)
-					pe.IconID = (PwIcon)ReadUInt(xmlChild, (uint)PwIcon.Key);
+					pe.IconId = (PwIcon)ReadUInt(xmlChild, (uint)PwIcon.Key);
 				else if(strName == ElemCustomIconID)
 					pe.CustomIconUuid = ReadUuid(xmlChild);
 				else if(strName == ElemFgColor)
@@ -544,6 +554,7 @@ namespace KeePassLib.Serialization
 			atStorage.Set(strWindow, strKeySeq);
 		}
 
+		/*
 		private void ReadDeletedObjects(XmlNode xmlNode, PwObjectList<PwDeletedObject> list)
 		{
 			ProcessNode(xmlNode);
@@ -572,6 +583,7 @@ namespace KeePassLib.Serialization
 
 			return pdo;
 		}
+		*/
 
 		private void ReadHistory(XmlNode xmlNode, PwObjectList<PwEntry> plStorage)
 		{

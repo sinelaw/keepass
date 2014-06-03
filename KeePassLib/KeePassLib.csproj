@@ -1,8 +1,8 @@
-﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="3.5">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProductVersion>8.0.50727</ProductVersion>
+    <ProductVersion>9.0.30729</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{53573E4E-33CB-4FDB-8698-C95F5E40E7F3}</ProjectGuid>
     <OutputType>Library</OutputType>
@@ -11,6 +11,11 @@
     <AssemblyName>KeePassLib</AssemblyName>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>KeePassLib.pfx</AssemblyOriginatorKeyFile>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <OldToolsVersion>2.0</OldToolsVersion>
+    <UpgradeBackupLocation>
+    </UpgradeBackupLocation>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -49,9 +54,17 @@
     <Compile Include="Cryptography\CryptoRandom.cs" />
     <Compile Include="Cryptography\CryptoRandomStream.cs" />
     <Compile Include="Cryptography\Cipher\ICipherEngine.cs" />
+    <Compile Include="Cryptography\HashingStreamEx.cs" />
+    <Compile Include="Cryptography\PasswordGenerator\CharSetBasedGenerator.cs" />
+    <Compile Include="Cryptography\PasswordGenerator\PatternBasedGenerator.cs" />
+    <Compile Include="Cryptography\PasswordGenerator\PwCharSet.cs" />
+    <Compile Include="Cryptography\PasswordGenerator\PwProfile.cs" />
     <Compile Include="Cryptography\QualityEstimation.cs" />
     <Compile Include="Cryptography\SelfTest.cs" />
     <Compile Include="Interfaces\IUIOperations.cs" />
+    <Compile Include="Keys\KcpCustomKey.cs" />
+    <Compile Include="Keys\KeyProvider.cs" />
+    <Compile Include="Keys\KeyProviderPool.cs" />
     <Compile Include="Keys\UserKeyType.cs" />
     <Compile Include="Native\NativeMethods.cs" />
     <Compile Include="PwCustomIcon.cs" />
@@ -85,14 +98,18 @@
     <Compile Include="Serialization\Kdb4File.Write.cs" />
     <Compile Include="Serialization\IOConnectionInfo.cs" />
     <Compile Include="Serialization\OldFormatException.cs" />
-    <Compile Include="Utility\AppConfigEx.cs" />
+    <Compile Include="Translation\KPControlCustomization.cs" />
+    <Compile Include="Translation\KPFormCustomization.cs" />
+    <Compile Include="Translation\KPStringTable.cs" />
+    <Compile Include="Translation\KPStringTableItem.cs" />
+    <Compile Include="Translation\KPTranslation.cs" />
+    <Compile Include="Translation\KPTranslationProperties.cs" />
     <Compile Include="Utility\AppLogEx.cs" />
     <Compile Include="Utility\MemUtil.cs" />
     <Compile Include="Utility\MessageService.cs" />
     <Compile Include="Native\NativeLib.cs" />
-    <Compile Include="Cryptography\PasswordGenerator.cs" />
+    <Compile Include="Cryptography\PasswordGenerator\PwGenerator.cs" />
     <Compile Include="Utility\StrUtil.cs" />
-    <Compile Include="Utility\TranslationUtil.cs" />
     <Compile Include="Utility\UrlUtil.cs" />
     <Compile Include="Utility\TimeUtil.cs" />
   </ItemGroup>

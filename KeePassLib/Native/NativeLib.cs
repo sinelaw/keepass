@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -63,6 +63,18 @@ namespace KeePassLib.Native
 			return bResult;
 		}
 
+		public static bool IsUnix()
+		{
+			PlatformID p = Environment.OSVersion.Platform;
+
+			// Mono defines Unix as 128 in early .NET versions
+#if !KeePassLibSD
+			return ((p == PlatformID.Unix) || ((int)p == 128));
+#else
+			return (((int)p == 4) || ((int)p == 128));
+#endif
+		}
+
 		/// <summary>
 		/// Transform a key.
 		/// </summary>
@@ -110,9 +122,8 @@ namespace KeePassLib.Native
 			{
 				bResult = NativeMethods.TransformKeyTimed(kvp.Key, kvp.Value, ref puRounds, uSeconds);
 			}
-			catch(Exception) { Debug.Assert(false); bResult = false; }
+			catch(Exception) { bResult = false; }
 
-			Debug.Assert(bResult);
 			if(bResult) GetBuffers256(kvp, pBuf256, pKey256);
 
 			NativeLib.FreeArrays(kvp);
@@ -123,10 +134,12 @@ namespace KeePassLib.Native
 			byte[] pKey256)
 		{
 			Debug.Assert((pBuf256 != null) && (pBuf256.Length == 32));
-			if((pBuf256 == null) || (pBuf256.Length != 32)) throw new ArgumentNullException();
+			if(pBuf256 == null) throw new ArgumentNullException("pBuf256");
+			if(pBuf256.Length != 32) throw new ArgumentException();
 
 			Debug.Assert((pKey256 != null) && (pKey256.Length == 32));
-			if((pKey256 == null) || (pKey256.Length != 32)) throw new ArgumentNullException();
+			if(pKey256 == null) throw new ArgumentNullException("pKey256");
+			if(pKey256.Length != 32) throw new ArgumentException();
 
 			IntPtr hBuf = Marshal.AllocHGlobal(pBuf256.Length);
 			Marshal.Copy(pBuf256, 0, hBuf, pBuf256.Length);

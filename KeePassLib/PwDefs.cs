@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Xml.Serialization;
 
 using KeePassLib.Interfaces;
 
@@ -42,14 +43,16 @@ namespace KeePassLib
 
 		/// <summary>
 		/// Version, encoded as 32-bit unsigned integer.
-		/// 2.00 = 0x02000000, 2.01 = 0x02000100, ...
+		/// 2.00 = 0x02000000, 2.01 = 0x02000100, etc.
 		/// </summary>
-		public const uint Version32 = 0x02000200;
+		public const uint Version32 = 0x02000600;
 
 		/// <summary>
 		/// Version, encoded as string.
 		/// </summary>
-		public const string VersionString = "2.02 Alpha";
+		public const string VersionString = "2.06 Beta";
+
+		public const string Copyright = @"Copyright © 2003-2008 Dominik Reichl";
 
 		/// <summary>
 		/// Product homepage URL. Terminated by a forward slash.
@@ -65,6 +68,11 @@ namespace KeePassLib
 		/// URL to the online plugins page.
 		/// </summary>
 		public const string PluginsUrl = "http://keepass.info/plugins.html";
+
+		/// <summary>
+		/// URL to the online translations page.
+		/// </summary>
+		public const string TranslationsUrl = "http://keepass.info/translations.html";
 
 		/// <summary>
 		/// URL to an XML file that contains information about the latest KeePass
@@ -153,11 +161,6 @@ namespace KeePassLib
 		public const string DefaultAutoTypeSequenceTan = @"{PASSWORD}";
 
 		/// <summary>
-		/// Name of the registration key that holds the user's account key.
-		/// </summary>
-		public const string ProtectedUserRegKey = "ProtectedUserKey";
-
-		/// <summary>
 		/// Check if a name is a standard field name.
 		/// </summary>
 		/// <param name="strFieldName">Input field name.</param>
@@ -183,6 +186,8 @@ namespace KeePassLib
 		/// <returns>Returns <c>true</c> if the entry is a TAN.</returns>
 		public static bool IsTanEntry(PwEntry pe)
 		{
+			Debug.Assert(pe != null); if(pe == null) return false;
+
 			return pe.Strings.ReadSafe(PwDefs.TitleField) == TanTitle;
 		}
 	}
@@ -193,29 +198,113 @@ namespace KeePassLib
 	/// </summary>
 	public sealed class SearchParameters
 	{
-		/// <summary>
-		/// The text to be searched.
-		/// </summary>
-		public string SearchText = string.Empty;
+		private string m_strText = string.Empty;
+		public string SearchString
+		{
+			get { return m_strText; }
+			set
+			{
+				if(value == null) throw new ArgumentNullException("value");
+				m_strText = value;
+			}
+		}
 
-		/// <summary>
-		/// If this flag is <c>true</c>, all string fields of entries will
-		/// be searched. This parameter overrides all other <c>SearchIn*</c>
-		/// flags (only if set to <c>true</c>).
-		/// </summary>
-		public bool SearchInAllStrings = false;
+		private bool m_bRegex = false;
+		public bool RegularExpression
+		{
+			get { return m_bRegex; }
+			set { m_bRegex = value; }
+		}
 
-		public bool SearchInTitles = true;
-		public bool SearchInUserNames = true;
-		public bool SearchInPasswords = false;
-		public bool SearchInUrls = true;
-		public bool SearchInNotes = true;
+		private bool m_bSearchInTitles = true;
+		public bool SearchInTitles
+		{
+			get { return m_bSearchInTitles; }
+			set { m_bSearchInTitles = value; }
+		}
 
+		private bool m_bSearchInUserNames = true;
+		public bool SearchInUserNames
+		{
+			get { return m_bSearchInUserNames; }
+			set { m_bSearchInUserNames = value; }
+		}
+
+		private bool m_bSearchInPasswords = false;
+		public bool SearchInPasswords
+		{
+			get { return m_bSearchInPasswords; }
+			set { m_bSearchInPasswords = value; }
+		}
+
+		private bool m_bSearchInUrls = true;
+		public bool SearchInUrls
+		{
+			get { return m_bSearchInUrls; }
+			set { m_bSearchInUrls = value; }
+		}
+
+		private bool m_bSearchInNotes = true;
+		public bool SearchInNotes
+		{
+			get { return m_bSearchInNotes; }
+			set { m_bSearchInNotes = value; }
+		}
+
+		private bool m_bSearchInOther = true;
+		public bool SearchInOther
+		{
+			get { return m_bSearchInOther; }
+			set { m_bSearchInOther = value; }
+		}
+
+		private bool m_bSearchInUuids = false;
+		public bool SearchInUuids
+		{
+			get { return m_bSearchInUuids; }
+			set { m_bSearchInUuids = value; }
+		}
+
+		private StringComparison m_scType = StringComparison.InvariantCultureIgnoreCase;
 		/// <summary>
 		/// String comparison type. Specifies the condition when the specified
 		/// text matches a group/entry string.
 		/// </summary>
-		public StringComparison StringCompare = StringComparison.InvariantCultureIgnoreCase;
+		public StringComparison ComparisonMode
+		{
+			get { return m_scType; }
+			set { m_scType = value; }
+		}
+
+		private bool m_bExcludeExpired = false;
+		public bool ExcludeExpired
+		{
+			get { return m_bExcludeExpired; }
+			set { m_bExcludeExpired = value; }
+		}
+
+		[XmlIgnore]
+		public static SearchParameters None
+		{
+			get
+			{
+				SearchParameters sp = new SearchParameters();
+
+				// sp.m_strText = string.Empty;
+				// sp.m_bRegex = false;
+				sp.m_bSearchInTitles = false;
+				sp.m_bSearchInUserNames = false;
+				sp.m_bSearchInUrls = false;
+				// sp.m_bSearchInPasswords = false;
+				sp.m_bSearchInNotes = false;
+				sp.m_bSearchInOther = false;
+				// sp.m_bSearchInUuids = false;
+				// sp.m_scType = StringComparison.InvariantCultureIgnoreCase;
+				// sp.m_bExcludeExpired = false;
+
+				return sp;
+			}
+		}
 
 		/// <summary>
 		/// Construct a new search parameters object.
@@ -238,11 +327,22 @@ namespace KeePassLib
 		public bool ProtectUrl = false;
 		public bool ProtectNotes = false;
 
-		public bool AutoEnableVisualHiding = true;
+		public bool AutoEnableVisualHiding = false;
 
 		public MemoryProtectionConfig CloneDeep()
 		{
 			return (MemoryProtectionConfig)this.MemberwiseClone();
+		}
+
+		public bool GetProtection(string strField)
+		{
+			if(strField == PwDefs.TitleField) return this.ProtectTitle;
+			if(strField == PwDefs.UserNameField) return this.ProtectUserName;
+			if(strField == PwDefs.PasswordField) return this.ProtectPassword;
+			if(strField == PwDefs.UrlField) return this.ProtectUrl;
+			if(strField == PwDefs.NotesField) return this.ProtectNotes;
+
+			return false;
 		}
 	}
 	#pragma warning restore 1591 // Missing XML comments warning

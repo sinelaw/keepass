@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ namespace KeePass.Util
 {
 	public static class ShellUtil
 	{
-		public static void RegisterExtension(string strFileExt, string strExtID,
+		public static void RegisterExtension(string strFileExt, string strExtId,
 			string strFullExtName, string strAppPath, string strAppName,
 			bool bShowSuccessMessage)
 		{
@@ -46,11 +46,11 @@ namespace KeePass.Util
 				catch(Exception) { }
 				RegistryKey kFileExt = kClassesRoot.OpenSubKey("." + strFileExt, true);
 
-				kFileExt.SetValue(string.Empty, strExtID, RegistryValueKind.String);
+				kFileExt.SetValue(string.Empty, strExtId, RegistryValueKind.String);
 
-				try { kClassesRoot.CreateSubKey(strExtID); }
+				try { kClassesRoot.CreateSubKey(strExtId); }
 				catch(Exception) { }
-				RegistryKey kExtInfo = kClassesRoot.OpenSubKey(strExtID, true);
+				RegistryKey kExtInfo = kClassesRoot.OpenSubKey(strExtId, true);
 
 				kExtInfo.SetValue(string.Empty, strFullExtName, RegistryValueKind.String);
 
@@ -88,21 +88,22 @@ namespace KeePass.Util
 			}
 		}
 
-		public static void UnregisterExtension(string strFileExt, string strExtID)
+		public static void UnregisterExtension(string strFileExt, string strExtId)
 		{
 			try
 			{
 				RegistryKey kClassesRoot = Registry.ClassesRoot;
 
 				kClassesRoot.DeleteSubKeyTree("." + strFileExt);
-				kClassesRoot.DeleteSubKeyTree(strExtID);
+				kClassesRoot.DeleteSubKeyTree(strExtId);
 			}
 			catch(Exception) { }
 		}
 
 		private const string AutoRunKey = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 
-		public static void SetStartWithWindows(string strAppName, string strAppPath, bool bAutoStart)
+		public static void SetStartWithWindows(string strAppName, string strAppPath,
+			bool bAutoStart)
 		{
 			try
 			{

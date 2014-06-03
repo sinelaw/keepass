@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -54,6 +54,7 @@ namespace KeePass.Forms
 		public GroupForm()
 		{
 			InitializeComponent();
+			Program.Translation.ApplyTo(this);
 		}
 
 		private void OnFormLoad(object sender, EventArgs e)
@@ -64,7 +65,7 @@ namespace KeePass.Forms
 			GlobalWindowManager.AddWindow(this);
 
 			m_bannerImage.Image = BannerFactory.CreateBanner(m_bannerImage.Width,
-				m_bannerImage.Height, BannerFactory.BannerStyle.Default,
+				m_bannerImage.Height, BannerStyle.Default,
 				Properties.Resources.B48x48_Folder_Txt, KPRes.EditGroup,
 				KPRes.EditGroupDesc);
 			this.Icon = Properties.Resources.KeePass;
@@ -72,11 +73,15 @@ namespace KeePass.Forms
 			m_dtExpires.CustomFormat = DateTimeFormatInfo.CurrentInfo.ShortDatePattern +
 				" " + DateTimeFormatInfo.CurrentInfo.LongTimePattern;
 
-			m_pwIconIndex = m_pwGroup.IconID;
+			m_pwIconIndex = m_pwGroup.IconId;
 			m_pwCustomIconID = m_pwGroup.CustomIconUuid;
 			
 			m_tbName.Text = m_pwGroup.Name;
-			m_btnIcon.Image = m_ilClientIcons.Images[(int)m_pwIconIndex];
+			m_tbNotes.Text = m_pwGroup.Notes;
+
+			if(m_pwCustomIconID != PwUuid.Zero)
+				m_btnIcon.Image = m_pwDatabase.GetCustomIcon(m_pwCustomIconID);
+			else m_btnIcon.Image = m_ilClientIcons.Images[(int)m_pwIconIndex];
 
 			if(m_pwGroup.Expires)
 			{
@@ -89,13 +94,22 @@ namespace KeePass.Forms
 				m_cbExpires.Checked = false;
 			}
 
-			m_tbDefaultAutoTypeSeq.Text = m_pwGroup.DefaultAutoTypeSequence;
+			m_tbDefaultAutoTypeSeq.Text = m_pwGroup.GetAutoTypeSequenceInherited();
 
 			if(m_pwGroup.DefaultAutoTypeSequence.Length == 0)
 				m_rbAutoTypeInherit.Checked = true;
 			else m_rbAutoTypeOverride.Checked = true;
 
+			CustomizeForScreenReader();
 			EnableControlsEx();
+		}
+
+		private void CustomizeForScreenReader()
+		{
+			if(!Program.Config.UI.OptimizeForScreenReader) return;
+
+			m_btnIcon.Text = KPRes.PickIcon;
+			m_btnAutoTypeEdit.Text = KPRes.ConfigureAutoType;
 		}
 
 		private void EnableControlsEx()
@@ -107,7 +121,8 @@ namespace KeePass.Forms
 		private void OnBtnOK(object sender, EventArgs e)
 		{
 			m_pwGroup.Name = m_tbName.Text;
-			m_pwGroup.IconID = m_pwIconIndex;
+			m_pwGroup.Notes = m_tbNotes.Text;
+			m_pwGroup.IconId = m_pwIconIndex;
 			m_pwGroup.CustomIconUuid = m_pwCustomIconID;
 
 			m_pwGroup.Expires = m_cbExpires.Checked;
@@ -125,8 +140,8 @@ namespace KeePass.Forms
 		private void OnBtnIcon(object sender, EventArgs e)
 		{
 			IconPickerForm ipf = new IconPickerForm();
-			ipf.InitEx(m_ilClientIcons, m_pwDatabase, (uint)m_pwIconIndex,
-				m_pwCustomIconID);
+			ipf.InitEx(m_ilClientIcons, (uint)PwIcon.Count, m_pwDatabase,
+				(uint)m_pwIconIndex, m_pwCustomIconID);
 
 			if(ipf.ShowDialog() == DialogResult.OK)
 			{
@@ -137,7 +152,7 @@ namespace KeePass.Forms
 				}
 				else // Standard icon
 				{
-					m_pwIconIndex = (PwIcon)ipf.ChosenIconID;
+					m_pwIconIndex = (PwIcon)ipf.ChosenIconId;
 					m_pwCustomIconID = PwUuid.Zero;
 					m_btnIcon.Image = m_ilClientIcons.Images[(int)m_pwIconIndex];
 				}
@@ -158,7 +173,7 @@ namespace KeePass.Forms
 		{
 			EditAutoTypeItemForm dlg = new EditAutoTypeItemForm();
 
-			string strName = "(" + KPRes.AutoType + ")";
+			string strName = @"(" + KPRes.AutoType + @")";
 
 			AutoTypeConfig atConfig = new AutoTypeConfig();
 			atConfig.DefaultSequence = m_tbDefaultAutoTypeSeq.Text;

@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ namespace KeePassLib.Serialization
 		{
 			if(ioc.IsLocalFile()) return OpenReadLocal(ioc);
 
-			return CreateWebClient(ioc).OpenRead(new Uri(ioc.Url));
+			return CreateWebClient(ioc).OpenRead(new Uri(ioc.Path));
 		}
 #else
 		public static Stream OpenRead(IOConnectionInfo ioc)
@@ -59,7 +59,7 @@ namespace KeePassLib.Serialization
 
 		private static Stream OpenReadLocal(IOConnectionInfo ioc)
 		{
-			return new FileStream(ioc.Url, FileMode.Open, FileAccess.Read,
+			return new FileStream(ioc.Path, FileMode.Open, FileAccess.Read,
 				FileShare.Read);
 		}
 
@@ -68,7 +68,7 @@ namespace KeePassLib.Serialization
 		{
 			if(ioc.IsLocalFile()) return OpenWriteLocal(ioc);
 
-			return CreateWebClient(ioc).OpenWrite(new Uri(ioc.Url));
+			return CreateWebClient(ioc).OpenWrite(new Uri(ioc.Path));
 		}
 #else
 		public static Stream OpenWrite(IOConnectionInfo ioc)
@@ -79,7 +79,7 @@ namespace KeePassLib.Serialization
 
 		private static Stream OpenWriteLocal(IOConnectionInfo ioc)
 		{
-			return new FileStream(ioc.Url, FileMode.Create, FileAccess.Write,
+			return new FileStream(ioc.Path, FileMode.Create, FileAccess.Write,
 				FileShare.None);
 		}
 	}

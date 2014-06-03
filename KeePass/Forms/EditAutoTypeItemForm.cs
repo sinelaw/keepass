@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,38 +46,41 @@ namespace KeePass.Forms
 		private string m_strOriginalName = null;
 		private bool m_bEditSequenceOnly = false;
 
-		private Color m_clrOriginalForeground = Color.Black;
+		// private Color m_clrOriginalForeground = Color.Black;
 		private Color m_clrOriginalBackground = Color.White;
-		private string m_strOriginalWindowHint = string.Empty;
 
 		private RichTextBoxContextMenu m_ctxKeySeq = new RichTextBoxContextMenu();
 		private RichTextBoxContextMenu m_ctxKeyCodes = new RichTextBoxContextMenu();
 		private bool m_bBlockUpdates = false;
 
+		private const string VkcBreak = "<break />";
+
 		private static string[] SpecialKeyCodes = new string[]{
 			"TAB", "ENTER", "UP", "DOWN", "LEFT", "RIGHT",
 			"HOME", "END", "PGUP", "PGDN",
-			"INSERT", "DELETE", "<break />",
+			"INSERT", "DELETE", VkcBreak,
 			"BACKSPACE", "BREAK", "CAPSLOCK",
-			"ESC", "HELP", "NUMLOCK", "PRTSC", "SCROLLLOCK", "<break />",
+			"ESC", "HELP", "NUMLOCK", "PRTSC", "SCROLLLOCK", VkcBreak,
 			"F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
-			"F13", "F14", "F15", "F16", "<break />",
+			"F13", "F14", "F15", "F16", VkcBreak,
 			"ADD", "SUBTRACT", "MULTIPLY", "DIVIDE"
 		};
 
 		private static string[] SpecialPlaceholders = new string[]{
-			"APPDIR", "DOCDIR"
+			"APPDIR", "DOCDIR", "GROUP", "GROUPPATH", "DELAY 1000",
+			"PICKPASSWORDCHARS"
 		};
 
 		public EditAutoTypeItemForm()
 		{
 			InitializeComponent();
+			Program.Translation.ApplyTo(this);
 		}
 
 		public void InitEx(AutoTypeConfig atConfig, ProtectedStringDictionary vStringDict, string strOriginalName, bool bEditSequenceOnly)
 		{
-			Debug.Assert(vStringDict != null); if(vStringDict == null) throw new ArgumentNullException();
-			Debug.Assert(atConfig != null); if(atConfig == null) throw new ArgumentNullException();
+			Debug.Assert(vStringDict != null); if(vStringDict == null) throw new ArgumentNullException("vStringDict");
+			Debug.Assert(atConfig != null); if(atConfig == null) throw new ArgumentNullException("atConfig");
 
 			m_atConfig = atConfig;
 			m_vStringDict = vStringDict;
@@ -87,8 +90,8 @@ namespace KeePass.Forms
 
 		private void OnFormLoad(object sender, EventArgs e)
 		{
-			Debug.Assert(m_vStringDict != null); if(m_vStringDict == null) throw new ArgumentNullException();
-			Debug.Assert(m_atConfig != null); if(m_atConfig == null) throw new ArgumentNullException();
+			Debug.Assert(m_vStringDict != null); if(m_vStringDict == null) throw new InvalidOperationException();
+			Debug.Assert(m_atConfig != null); if(m_atConfig == null) throw new InvalidOperationException();
 
 			GlobalWindowManager.AddWindow(this);
 
@@ -98,23 +101,23 @@ namespace KeePass.Forms
 			if(!m_bEditSequenceOnly)
 			{
 				m_bannerImage.Image = BannerFactory.CreateBanner(m_bannerImage.Width,
-					m_bannerImage.Height, BannerFactory.BannerStyle.Default,
+					m_bannerImage.Height, BannerStyle.Default,
 					Properties.Resources.B48x48_KCMSystem, KPRes.ConfigureAutoTypeItem,
 					KPRes.ConfigureAutoTypeItemDesc);
 			}
 			else // Edit keystrokes only
 			{
 				m_bannerImage.Image = BannerFactory.CreateBanner(m_bannerImage.Width,
-					m_bannerImage.Height, BannerFactory.BannerStyle.Default,
+					m_bannerImage.Height, BannerStyle.Default,
 					Properties.Resources.B48x48_KCMSystem, KPRes.ConfigureKeystrokeSeq,
 					KPRes.ConfigureKeystrokeSeqDesc);
 			}
 
 			this.Icon = Properties.Resources.KeePass;
 
-			m_clrOriginalForeground = m_lblTargetWindowInfo.ForeColor;
+			// m_clrOriginalForeground = m_lblOpenHint.ForeColor;
 			m_clrOriginalBackground = m_cmbWindow.BackColor;
-			m_strOriginalWindowHint = m_lblTargetWindowInfo.Text;
+			// m_strOriginalWindowHint = m_lblTargetWindowInfo.Text;
 
 			StringBuilder sbPH = new StringBuilder();
 			sbPH.Append("<b>");
@@ -144,17 +147,22 @@ namespace KeePass.Forms
 				}
 			}
 
+			sbPH.Append("<br /><br /><b>" + KPRes.KeyboardKeyModifiers + ":</b><br />");
+			sbPH.Append(KPRes.KeyboardKeyShift + @": +, ");
+			sbPH.Append(KPRes.KeyboardKeyControl + @": ^, ");
+			sbPH.Append(KPRes.KeyboardKeyAlt + @": %");
+
 			sbPH.Append("<br /><br /><b>" + KPRes.SpecialKeys + ":</b><br />");
 			foreach(string strNav in SpecialKeyCodes)
 			{
-				if(strNav == "<break />") sbPH.Append("<br /><br />");
+				if(strNav == VkcBreak) sbPH.Append("<br /><br />");
 				else sbPH.Append("{" + strNav + "} ");
 			}
 
 			sbPH.Append("<br /><br /><b>" + KPRes.OtherPlaceholders + ":</b><br />");
 			foreach(string strPH in SpecialPlaceholders)
 			{
-				if(strPH == "<break />") sbPH.Append("<br /><br />");
+				if(strPH == VkcBreak) sbPH.Append("<br /><br />");
 				else sbPH.Append("{" + strPH + "} ");
 			}
 
@@ -240,32 +248,32 @@ namespace KeePass.Forms
 			string strItemName = m_cmbWindow.Text;
 
 			bool bEnableOK = true;
-			string strError = string.Empty;
+			// string strError = string.Empty;
 
 			if((m_atConfig.Get(strItemName) != null) && !m_bEditSequenceOnly)
 				if((m_strOriginalName == null) || !strItemName.Equals(m_strOriginalName))
 				{
 					bEnableOK = false;
-					strError = KPRes.FieldNameExistsAlready;
+					// strError = KPRes.FieldNameExistsAlready;
 				}
 
 			if((strItemName.IndexOf('{') >= 0) || (strItemName.IndexOf('}') >= 0))
 			{
 				bEnableOK = false;
-				strError = KPRes.FieldNameInvalid;
+				// strError = KPRes.FieldNameInvalid;
 			}
 
 			if(bEnableOK)
 			{
-				m_lblTargetWindowInfo.Text = m_strOriginalWindowHint;
-				m_lblTargetWindowInfo.ForeColor = m_clrOriginalForeground;
+				// m_lblTargetWindowInfo.Text = m_strOriginalWindowHint;
+				// m_lblTargetWindowInfo.ForeColor = m_clrOriginalForeground;
 				m_cmbWindow.BackColor = m_clrOriginalBackground;
 				m_btnOK.Enabled = true;
 			}
 			else
 			{
-				m_lblTargetWindowInfo.Text = strError;
-				m_lblTargetWindowInfo.ForeColor = Color.Red;
+				// m_lblTargetWindowInfo.Text = strError;
+				// m_lblTargetWindowInfo.ForeColor = Color.Red;
 				m_cmbWindow.BackColor = AppDefs.ColorEditError;
 				m_btnOK.Enabled = false;
 			}
@@ -273,7 +281,7 @@ namespace KeePass.Forms
 			if(m_bEditSequenceOnly)
 			{
 				m_cmbWindow.Enabled = false;
-				m_lblTargetWindowInfo.Enabled = false;
+				// m_lblTargetWindowInfo.Enabled = false;
 			}
 
 			m_bBlockUpdates = false;
@@ -359,6 +367,11 @@ namespace KeePass.Forms
 		private void OnFormClosed(object sender, FormClosedEventArgs e)
 		{
 			GlobalWindowManager.RemoveWindow(this);
+		}
+
+		private void OnWildcardRegexLinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+		{
+			AppHelp.ShowHelp(AppDefs.HelpTopics.AutoType, AppDefs.HelpTopics.AutoTypeWindowFilters);
 		}
 	}
 }

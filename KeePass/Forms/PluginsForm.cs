@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,11 +36,13 @@ using KeePassLib.Utility;
 
 namespace KeePass.Forms
 {
-	public partial class PluginsForm : Form
+	public partial class PluginsForm : Form, IGwmWindow
 	{
 		private PluginManager m_mgr = null;
 		private bool m_bBlockListUpdate = false;
 		private ImageList m_ilIcons = new ImageList();
+
+		public bool CanCloseWithoutDataLoss { get { return true; } }
 
 		internal void InitEx(PluginManager mgr)
 		{
@@ -51,19 +53,26 @@ namespace KeePass.Forms
 		public PluginsForm()
 		{
 			InitializeComponent();
+			Program.Translation.ApplyTo(this);
 		}
 
 		private void OnFormLoad(object sender, EventArgs e)
 		{
 			Debug.Assert(m_mgr != null); if(m_mgr == null) throw new ArgumentException();
 
-			GlobalWindowManager.AddWindow(this);
+			GlobalWindowManager.AddWindow(this, this);
 
 			m_bannerImage.Image = BannerFactory.CreateBanner(m_bannerImage.Width,
-				m_bannerImage.Height, BannerFactory.BannerStyle.Default,
+				m_bannerImage.Height, BannerStyle.Default,
 				Properties.Resources.B48x48_BlockDevice, KPRes.Plugins,
 				KPRes.PluginsDesc);
 			this.Icon = Properties.Resources.KeePass;
+
+			m_lvPlugins.Columns.Add(KPRes.Plugin, 197);
+			m_lvPlugins.Columns.Add(KPRes.Version, 106);
+			m_lvPlugins.Columns.Add(KPRes.Author, 136);
+			m_lvPlugins.Columns.Add(KPRes.Description, 0);
+			m_lvPlugins.Columns.Add(KPRes.File, 119);
 
 			m_ilIcons.ImageSize = new Size(16, 16);
 			m_ilIcons.ColorDepth = ColorDepth.Depth32Bit;
@@ -143,7 +152,7 @@ namespace KeePass.Forms
 
 		private void OnPluginsLinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
 		{
-			WinUtil.OpenUrlInNewBrowser(PwDefs.PluginsUrl, null);
+			WinUtil.OpenUrl(PwDefs.PluginsUrl, null);
 		}
 
 		private void OnFormClosed(object sender, FormClosedEventArgs e)

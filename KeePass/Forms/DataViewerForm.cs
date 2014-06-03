@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -56,6 +56,7 @@ namespace KeePass.Forms
 		public DataViewerForm()
 		{
 			InitializeComponent();
+			Program.Translation.ApplyTo(this);
 		}
 
 		private void OnFormLoad(object sender, EventArgs e)
@@ -63,9 +64,12 @@ namespace KeePass.Forms
 			Debug.Assert(m_pbData != null);
 			if(m_pbData == null) throw new InvalidOperationException();
 
+			GlobalWindowManager.AddWindow(this);
+
 			this.Icon = KeePass.Properties.Resources.KeePass;
 
-			GlobalWindowManager.AddWindow(this);
+			m_tslViewer.Text = KPRes.ShowIn + ":";
+			m_tslEncoding.Text = KPRes.Encoding + ":";
 
 			if(m_strDataDesc.Length > 0)
 				this.Text = this.Text + @" [" + m_strDataDesc + @"]";
@@ -84,7 +88,7 @@ namespace KeePass.Forms
 			m_picBox.Dock = DockStyle.Fill;
 
 			m_tscEncoding.Items.Add(BinaryDataClassifier.BdeAnsi + " (" +
-				KPRes.SystemCodepage + ")");
+				KPRes.SystemCodePage + ")");
 			m_tscEncoding.Items.Add(BinaryDataClassifier.BdeAscii);
 			m_tscEncoding.Items.Add(BinaryDataClassifier.BdeUtf7);
 			m_tscEncoding.Items.Add(BinaryDataClassifier.BdeUtf8);
@@ -131,7 +135,7 @@ namespace KeePass.Forms
 
 		private void OnRichTextBoxLinkClicked(object sender, LinkClickedEventArgs e)
 		{
-			WinUtil.OpenUrlInNewBrowser(e.LinkText, null);
+			WinUtil.OpenUrl(e.LinkText, null);
 		}
 
 		private string BinaryDataToString(Encoding enc)
@@ -141,7 +145,7 @@ namespace KeePass.Forms
 				string strEnc = m_tscEncoding.Text;
 
 				if(strEnc == BinaryDataClassifier.BdeAnsi + " (" +
-					KPRes.SystemCodepage + ")")
+					KPRes.SystemCodePage + ")")
 				{
 					enc = Encoding.Default;
 				}

@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,9 +34,11 @@ using KeePassLib.Delegates;
 
 namespace KeePass.Forms
 {
-	public partial class DatabaseOperationsForm : Form
+	public partial class DatabaseOperationsForm : Form, IGwmWindow
 	{
 		private PwDatabase m_pwDatabase = null;
+
+		public bool CanCloseWithoutDataLoss { get { return true; } }
 
 		public void InitEx(PwDatabase pwDatabase)
 		{
@@ -46,16 +48,17 @@ namespace KeePass.Forms
 		public DatabaseOperationsForm()
 		{
 			InitializeComponent();
+			Program.Translation.ApplyTo(this);
 		}
 
 		private void OnFormLoad(object sender, EventArgs e)
 		{
-			Debug.Assert(m_pwDatabase != null); if(m_pwDatabase == null) throw new ArgumentNullException();
+			Debug.Assert(m_pwDatabase != null); if(m_pwDatabase == null) throw new InvalidOperationException();
 
-			GlobalWindowManager.AddWindow(this);
+			GlobalWindowManager.AddWindow(this, this);
 
 			m_bannerImage.Image = BannerFactory.CreateBanner(m_bannerImage.Width,
-				m_bannerImage.Height, BannerFactory.BannerStyle.Default,
+				m_bannerImage.Height, BannerStyle.Default,
 				Properties.Resources.B48x48_Package_Settings, KPRes.DatabaseMaintenance,
 				KPRes.DatabaseMaintenanceDesc);
 			this.Icon = Properties.Resources.KeePass;

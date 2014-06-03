@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -152,12 +152,17 @@ namespace KeePass.Util
 
 		private static void CreateEntry(EntryTemplate et)
 		{
-			if(Program.MainForm.Database.IsOpen == false) { Debug.Assert(false); return; }
+			if(Program.MainForm.ActiveDatabase.IsOpen == false)
+			{
+				Debug.Assert(false);
+				return;
+			}
 
 			PwGroup pgContainer = Program.MainForm.GetSelectedGroup();
-			if(pgContainer == null) pgContainer = Program.MainForm.Database.RootGroup;
+			if(pgContainer == null)
+				pgContainer = Program.MainForm.ActiveDatabase.RootGroup;
 
-			PwEntry pe = new PwEntry(pgContainer, true, true);
+			PwEntry pe = new PwEntry(true, true);
 
 			// pe.Strings.Set(PwDefs.TitleField, new ProtectedString(
 			//	Program.MainForm.Database.MemoryProtection.ProtectTitle,
@@ -167,17 +172,18 @@ namespace KeePass.Util
 				pe.Strings.Set(eti.Name, new ProtectedString(eti.Protected, string.Empty));
 
 			PwEntryForm pef = new PwEntryForm();
-			pef.InitEx(pe, PwEditMode.AddNewEntry, Program.MainForm.Database,
+			pef.InitEx(pe, PwEditMode.AddNewEntry, Program.MainForm.ActiveDatabase,
 				Program.MainForm.ClientIcons, true);
 
 			if(pef.ShowDialog() == DialogResult.OK)
 			{
-				pgContainer.Entries.Add(pe);
+				pgContainer.AddEntry(pe, true);
 
-				Program.MainForm.UpdateEntryList(null, true);
-				Program.MainForm.UpdateUIState(true);
+				// Program.MainForm.UpdateEntryList(null, true);
+				// Program.MainForm.UpdateUIState(true);
+				Program.MainForm.UpdateUI(false, null, false, null, true, null, true);
 			}
-			else Program.MainForm.UpdateUIState(false);
+			else Program.MainForm.UpdateUI(false, null, false, null, false, null, false);
 		}
 
 		private static readonly EntryTemplate BankAccount = new EntryTemplate(
@@ -187,8 +193,8 @@ namespace KeePass.Util
 				new EntryTemplateItem(KPRes.BranchCode, false),
 				new EntryTemplateItem(KPRes.RoutingCode, false),
 				new EntryTemplateItem(KPRes.SortCode, false),
-				new EntryTemplateItem(KPRes.IBAN, false),
-				new EntryTemplateItem(KPRes.SWIFTCode, false),
+				new EntryTemplateItem(KPRes.Iban, false),
+				new EntryTemplateItem(KPRes.SwiftCode, false),
 				new EntryTemplateItem(KPRes.BranchTel, false),
 				new EntryTemplateItem(KPRes.TAccountInfoTel, false),
 				new EntryTemplateItem(KPRes.BranchHours, false),

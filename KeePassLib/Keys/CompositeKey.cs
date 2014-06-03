@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,6 +46,11 @@ namespace KeePassLib.Keys
 		public IEnumerable<IUserKey> UserKeys
 		{
 			get { return m_vUserKeys; }
+		}
+
+		public uint UserKeyCount
+		{
+			get { return (uint)m_vUserKeys.Count; }
 		}
 
 		/// <summary>
@@ -221,11 +226,11 @@ namespace KeePassLib.Keys
 		private static byte[] TransformKey(byte[] pbOriginalKey32, byte[] pbKeySeed32, ulong uNumRounds)
 		{
 			Debug.Assert((pbOriginalKey32 != null) && (pbOriginalKey32.Length == 32));
-			if(pbOriginalKey32 == null) throw new ArgumentNullException("pbOriginalKey");
+			if(pbOriginalKey32 == null) throw new ArgumentNullException("pbOriginalKey32");
 			if(pbOriginalKey32.Length != 32) throw new ArgumentException();
 
 			Debug.Assert((pbKeySeed32 != null) && (pbKeySeed32.Length == 32));
-			if(pbKeySeed32 == null) throw new ArgumentNullException("pbKeySeed");
+			if(pbKeySeed32 == null) throw new ArgumentNullException("pbKeySeed32");
 			if(pbKeySeed32.Length != 32) throw new ArgumentException();
 
 			byte[] pbNewKey = new byte[32];
@@ -246,10 +251,13 @@ namespace KeePassLib.Keys
 			r.Key = pbKeySeed32;
 			ICryptoTransform iCrypt = r.CreateEncryptor();
 
-			if((iCrypt == null) || (!iCrypt.CanReuseTransform) ||
-				(iCrypt.InputBlockSize != 16) || (iCrypt.OutputBlockSize != 16))
+			// !iCrypt.CanReuseTransform -- doesn't work with Mono
+			if((iCrypt == null) || (iCrypt.InputBlockSize != 16) ||
+				(iCrypt.OutputBlockSize != 16))
 			{
 				Debug.Assert(false, "Invalid ICryptoTransform.");
+				Debug.Assert(iCrypt.InputBlockSize == 16, "Invalid input block size!");
+				Debug.Assert(iCrypt.OutputBlockSize == 16, "Invalid output block size!");
 				return null;
 			}
 
@@ -302,10 +310,13 @@ namespace KeePassLib.Keys
 			r.Key = pbKey;
 			ICryptoTransform iCrypt = r.CreateEncryptor();
 
-			if((iCrypt == null) || (!iCrypt.CanReuseTransform) ||
-				(iCrypt.InputBlockSize != 16) || (iCrypt.OutputBlockSize != 16))
+			// !iCrypt.CanReuseTransform -- doesn't work with Mono
+			if((iCrypt == null) || (iCrypt.InputBlockSize != 16) ||
+				(iCrypt.OutputBlockSize != 16))
 			{
 				Debug.Assert(false, "Invalid ICryptoTransform.");
+				Debug.Assert(iCrypt.InputBlockSize == 16, "Invalid input block size!");
+				Debug.Assert(iCrypt.OutputBlockSize == 16, "Invalid output block size!");
 				return PwDefs.DefaultKeyEncryptionRounds;
 			}
 
@@ -338,8 +349,6 @@ namespace KeePassLib.Keys
 
 	public sealed class InvalidCompositeKeyException : Exception
 	{
-		private Exception m_exInner = null;
-
 		public override string Message
 		{
 			get
@@ -352,11 +361,8 @@ namespace KeePassLib.Keys
 		/// <summary>
 		/// Construct a new invalid composite key exception.
 		/// </summary>
-		/// <param name="excpInner">Optional inner exception. May be
-		/// <c>null</c>.</param>
-		public InvalidCompositeKeyException(Exception excpInner)
+		public InvalidCompositeKeyException()
 		{
-			m_exInner = excpInner;
 		}
 	}
 }

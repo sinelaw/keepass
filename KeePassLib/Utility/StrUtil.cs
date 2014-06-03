@@ -1,6 +1,6 @@
 ﻿/*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,8 +24,12 @@ using System.Diagnostics;
 using System.Text;
 using System.Drawing;
 using System.IO;
+using System.Text.RegularExpressions;
 
+using KeePassLib.Collections;
+using KeePassLib.Native;
 using KeePassLib.Security;
+using KeePassLib.Resources;
 
 namespace KeePassLib.Utility
 {
@@ -64,6 +68,46 @@ namespace KeePassLib.Utility
 			++m_nPos;
 			return chRet;
 		}
+
+		public char ReadChar(bool bSkipWhitespace)
+		{
+			if(bSkipWhitespace == false) return ReadChar();
+
+			while(true)
+			{
+				char ch = ReadChar();
+
+				if((ch != ' ') && (ch != '\t') && (ch != '\r') && (ch != '\n'))
+					return ch;
+			}
+		}
+
+		public char PeekChar()
+		{
+			if(m_nPos < 0) return char.MinValue;
+			if(m_nPos >= m_strString.Length) return char.MinValue;
+
+			return m_strString[m_nPos];
+		}
+
+		public char PeekChar(bool bSkipWhitespace)
+		{
+			if(bSkipWhitespace == false) return PeekChar();
+
+			int iIndex = m_nPos;
+			while(true)
+			{
+				if(iIndex < 0) return char.MinValue;
+				if(iIndex >= m_strString.Length) return char.MinValue;
+
+				char ch = m_strString[iIndex];
+
+				if((ch != ' ') && (ch != '\t') && (ch != '\r') && (ch != '\n'))
+					return ch;
+
+				++iIndex;
+			}
+		}
 	}
 
 	/// <summary>
@@ -78,7 +122,7 @@ namespace KeePassLib.Utility
 		/// <returns>RTF-encoded string.</returns>
 		public static string MakeRtfString(string str)
 		{
-			Debug.Assert(str != null); if(str == null) throw new ArgumentNullException();
+			Debug.Assert(str != null); if(str == null) throw new ArgumentNullException("str");
 
 			str = str.Replace("\\", "\\\\");
 			str = str.Replace("\r", "");
@@ -96,7 +140,7 @@ namespace KeePassLib.Utility
 		/// <returns>String, HTML-encoded.</returns>
 		public static string StringToHtml(string str)
 		{
-			Debug.Assert(str != null); if(str == null) throw new ArgumentNullException();
+			Debug.Assert(str != null); if(str == null) throw new ArgumentNullException("str");
 
 			str = str.Replace(@"&", @"&amp;");
 			str = str.Replace(@"<", @"&lt;");
@@ -110,37 +154,35 @@ namespace KeePassLib.Utility
 			return str;
 		}
 
-		/// <summary>
-		/// Search for a substring case-insensitively and replace it by some new string.
-		/// </summary>
-		/// <param name="strString">Base string, which will be searched.</param>
-		/// <param name="strToReplace">The string to search for (and to replace).</param>
-		/// <param name="psNew">New replacement string. Must not be <c>null</c>.</param>
-		/// <param name="bCmdQuotes">If <c>true</c>, quotes will be replaced by
-		/// command-line friendly escape sequences.</param>
-		/// <returns>Modified string object.</returns>
-		public static string ReplaceCaseInsensitive(string strString, string strToReplace,
-			ProtectedString psNew, bool bCmdQuotes, bool bDataAsKeySequence)
+		public static string XmlToString(string str)
 		{
-			Debug.Assert(strString != null); if(strString == null) return null;
-			Debug.Assert(strToReplace != null); if(strToReplace == null) return strString;
-			Debug.Assert(psNew != null); if(psNew == null) return strString;
+			Debug.Assert(str != null); if(str == null) throw new ArgumentNullException("str");
 
-			string str = strString, strNew = psNew.ReadString();
+			str = str.Replace(@"&amp;", @"&");
+			str = str.Replace(@"&lt;", @"<");
+			str = str.Replace(@"&gt;", @">");
+			str = str.Replace(@"&quot;", "\"");
+			str = str.Replace(@"&#39;", "\'");
+
+			return str;
+		}
+
+		public static string ReplaceCaseInsensitive(string strString, string strFind,
+			string strNew)
+		{
+			Debug.Assert(strString != null); if(strString == null) return strString;
+			Debug.Assert(strFind != null); if(strFind == null) return strString;
+			Debug.Assert(strNew != null); if(strNew == null) return strString;
+
+			string str = strString;
+
 			int nPos = 0;
-
-			if(bCmdQuotes)
-				strNew = strNew.Replace("\"", "\"\"\"");
-
-			if(bDataAsKeySequence)
-				strNew = StringToKeySequence(strNew, true);
-
-			while(true)
+			while(nPos < str.Length)
 			{
-				nPos = str.IndexOf(strToReplace, nPos, StringComparison.OrdinalIgnoreCase);
+				nPos = str.IndexOf(strFind, nPos, StringComparison.OrdinalIgnoreCase);
 				if(nPos < 0) break;
 
-				str = str.Remove(nPos, strToReplace.Length);
+				str = str.Remove(nPos, strFind.Length);
 				str = str.Insert(nPos, strNew);
 
 				nPos += strNew.Length;
@@ -187,75 +229,6 @@ namespace KeePassLib.Utility
 
 			if(strApp == null) strApp = string.Empty;
 			if(strArgs == null) strArgs = string.Empty;
-		}
-
-		/// <summary>
-		/// Fill in all placeholders in a string using entry information.
-		/// </summary>
-		/// <param name="strSeq">String containing placeholders.</param>
-		/// <param name="pe">Entry to retrieve the data from.</param>
-		/// <param name="strAppPath">Path of the current executable file.</param>
-		/// <param name="pwDatabase">Current database.</param>
-		/// <param name="bCmdQuotes">If <c>true</c>, quotes will be replaced by
-		/// command-line friendly escape sequences.</param>
-		/// <param name="bDataToKeySequence">If <c>true</c>, data will be
-		/// inserted as auto-type key sequence.</param>
-		/// <returns>Returns the new string.</returns>
-		public static string FillPlaceholders(string strSeq, PwEntry pe,
-			string strAppPath, PwDatabase pwDatabase, bool bCmdQuotes,
-			bool bDataAsKeySequence)
-		{
-			string str = strSeq;
-
-			for(int i = 0; i < 2; ++i) // Two-pass replacement
-			{
-				if(pe != null)
-				{
-					foreach(KeyValuePair<string, ProtectedString> kvp in pe.Strings)
-					{
-						string strKey = PwDefs.IsStandardField(kvp.Key) ?
-							(@"{" + kvp.Key + @"}") :
-							(@"{" + PwDefs.AutoTypeStringPrefix + kvp.Key + @"}");
-
-						str = StrUtil.ReplaceCaseInsensitive(str, strKey, kvp.Value,
-							bCmdQuotes, bDataAsKeySequence);
-					}
-
-					if(pe.ParentGroup != null)
-						str = StrUtil.ReplaceCaseInsensitive(str, @"{GROUP}",
-							new ProtectedString(false, pe.ParentGroup.Name),
-							bCmdQuotes, bDataAsKeySequence);
-				}
-
-				str = StrUtil.ReplaceCaseInsensitive(str, @"{APPDIR}",
-					new ProtectedString(false, UrlUtil.GetFileDirectory(strAppPath,
-					false)), bCmdQuotes, bDataAsKeySequence);
-
-				if(pwDatabase != null)
-				{
-					str = StrUtil.ReplaceCaseInsensitive(str, @"{DOCDIR}",
-						new ProtectedString(false,
-						UrlUtil.GetFileDirectory(pwDatabase.IOConnectionInfo.Url,
-						false)), bCmdQuotes, bDataAsKeySequence);
-				}
-			}
-
-#if !KeePassLibSD
-			// Replace environment variables
-			foreach(DictionaryEntry de in Environment.GetEnvironmentVariables())
-			{
-				string strKey = de.Key as string;
-				string strValue = de.Value as string;
-
-				if((strKey != null) && (strValue != null))
-					str = StrUtil.ReplaceCaseInsensitive(str, @"%" + strKey +
-						@"%", new ProtectedString(false, strValue), false,
-						bDataAsKeySequence);
-				else { Debug.Assert(false); }
-			}
-#endif
-
-			return str;
 		}
 
 		/// <summary>
@@ -455,39 +428,6 @@ namespace KeePassLib.Utility
 			return strText.Substring(0, nMaxChars - 3) + "...";
 		}
 
-		public static string StringToKeySequence(string str, bool bReplaceEscBrackets)
-		{
-			Debug.Assert(str != null); if(str == null) return string.Empty;
-
-			if(bReplaceEscBrackets && ((str.IndexOf('{') >= 0) || (str.IndexOf('}') >= 0)))
-			{
-				char chOpen = '\u25A1';
-				while(str.IndexOf(chOpen) >= 0) ++chOpen;
-
-				char chClose = chOpen;
-				++chClose;
-				while(str.IndexOf(chClose) >= 0) ++chClose;
-
-				str = str.Replace('{', chOpen);
-				str = str.Replace('}', chClose);
-
-				str = str.Replace(new string(chOpen, 1), @"{{}");
-				str = str.Replace(new string(chClose, 1), @"{}}");
-			}
-
-			str = str.Replace(@"[", @"{[}");
-			str = str.Replace(@"]", @"{]}");
-
-			str = str.Replace(@"+", @"{+}");
-			str = str.Replace(@"^", @"{^}");
-			str = str.Replace(@"%", @"{%}");
-			str = str.Replace(@"~", @"{~}");
-			str = str.Replace(@"(", @"{(}");
-			str = str.Replace(@")", @"{)}");
-
-			return str;
-		}
-
 		public static string GetStringBetween(string strText, int nStartIndex,
 			string strStart, string strEnd)
 		{
@@ -515,5 +455,170 @@ namespace KeePassLib.Utility
 			nInnerStartIndex = nIndex;
 			return strText.Substring(nIndex, nEndIndex - nIndex);
 		}
+
+		/// <summary>
+		/// Removes all characters that are not valid XML characters,
+		/// according to http://www.w3.org/TR/xml/#charsets .
+		/// </summary>
+		/// <param name="strText">Source text.</param>
+		/// <returns>Text containing only valid XML characters.</returns>
+		public static string SafeXmlString(string strText)
+		{
+			Debug.Assert(strText != null); // No throw
+			if(string.IsNullOrEmpty(strText)) return strText;
+
+			char[] vChars = strText.ToCharArray();
+			StringBuilder sb = new StringBuilder(strText.Length, strText.Length);
+			char ch;
+
+			for(int i = 0; i < vChars.Length; ++i)
+			{
+				ch = vChars[i];
+
+				if(((ch >= 0x20) && (ch <= 0xD7FF)) ||
+					(ch == 0x9) || (ch == 0xA) || (ch == 0xD) ||
+					((ch >= 0xE000) && (ch <= 0xFFFD)))
+					sb.Append(ch);
+				// Range ((ch >= 0x10000) && (ch <= 0x10FFFF)) excluded
+			}
+
+			return sb.ToString();
+		}
+
+		private static Regex m_rxNaturalSplit = null;
+		public static int CompareNaturally(string strX, string strY)
+		{
+			Debug.Assert(strX != null);
+			if(strX == null) throw new ArgumentNullException("strX");
+			Debug.Assert(strY != null);
+			if(strY == null) throw new ArgumentNullException("strY");
+
+			if(NativeMethods.SupportsStrCmpNaturally)
+				return NativeMethods.StrCmpNaturally(strX, strY);
+
+			strX = strX.ToLower();
+			strY = strY.ToLower();
+
+			if(m_rxNaturalSplit == null)
+				m_rxNaturalSplit = new Regex(@"([0-9]+)", RegexOptions.Compiled);
+
+			string[] vPartsX = m_rxNaturalSplit.Split(strX);
+			string[] vPartsY = m_rxNaturalSplit.Split(strY);
+
+			for(int i = 0; i < Math.Min(vPartsX.Length, vPartsY.Length); ++i)
+			{
+				string strPartX = vPartsX[i], strPartY = vPartsY[i];
+				int iPartCompare;
+
+#if KeePassLibSD
+				ulong uX = 0, uY = 0;
+				try
+				{
+					uX = ulong.Parse(strPartX);
+					uY = ulong.Parse(strPartY);
+					iPartCompare = uX.CompareTo(uY);
+				}
+				catch(Exception) { iPartCompare = strPartX.CompareTo(strPartY); }
+#else
+				ulong uX, uY;
+				if(ulong.TryParse(strPartX, out uX) && ulong.TryParse(strPartY, out uY))
+					iPartCompare = uX.CompareTo(uY);
+				else iPartCompare = strPartX.CompareTo(strPartY);
+#endif
+
+				if(iPartCompare != 0) return iPartCompare;
+			}
+
+			if(vPartsX.Length == vPartsY.Length) return 0;
+			if(vPartsX.Length < vPartsY.Length) return -1;
+			return 1;
+		}
+
+		public static string RemoveAccelerator(string strMenuText)
+		{
+			if(strMenuText == null) throw new ArgumentNullException("strMenuText");
+
+			string str = strMenuText;
+
+			for(char ch = 'A'; ch <= 'Z'; ++ch)
+			{
+				string strEnhAcc = @"(&" + ch.ToString() + @")";
+
+				if(str.IndexOf(strEnhAcc) >= 0)
+				{
+					str = str.Replace(@" " + strEnhAcc, string.Empty);
+					str = str.Replace(strEnhAcc, string.Empty);
+				}
+			}
+
+			str = str.Replace("&", string.Empty);
+
+			return str;
+		}
+
+		public static bool IsHexString(string str, bool bStrict)
+		{
+			if(str == null) throw new ArgumentNullException("str");
+			if(str.Length == 0) return true;
+
+			foreach(char ch in str)
+			{
+				if((ch >= '0') && (ch <= '9')) continue;
+				if((ch >= 'a') && (ch <= 'z')) continue;
+				if((ch >= 'A') && (ch <= 'Z')) continue;
+
+				if(bStrict) return false;
+
+				if((ch == ' ') || (ch == '\t') || (ch == '\r') || (ch == '\n'))
+					continue;
+
+				return false;
+			}
+
+			return true;
+		}
+
+#if !KeePassLibSD
+		public static bool SimplePatternMatch(string strPattern, string strText,
+			StringComparison sc)
+		{
+			if(strPattern == null) throw new ArgumentNullException("strPattern");
+			if(strText == null) throw new ArgumentNullException("strText");
+
+			if(strPattern.IndexOf('*') < 0) return strText.Equals(strPattern, sc);
+
+			string[] vPatternParts = strPattern.Split(new char[]{ '*' },
+				StringSplitOptions.RemoveEmptyEntries);
+			if(vPatternParts == null) { Debug.Assert(false); return true; }
+			if(vPatternParts.Length == 0) return true;
+
+			if(strText.Length == 0) return false;
+
+			if(!strPattern.StartsWith(@"*") && !strText.StartsWith(vPatternParts[0], sc))
+			{
+				return false;
+			}
+
+			if(!strPattern.EndsWith(@"*") && !strText.EndsWith(vPatternParts[
+				vPatternParts.Length - 1], sc))
+			{
+				return false;
+			}
+
+			int iOffset = 0;
+			for(int i = 0; i < vPatternParts.Length; ++i)
+			{
+				string strPart = vPatternParts[i];
+
+				int iFound = strText.IndexOf(strPart, iOffset, sc);
+				if(iFound < iOffset) return false;
+
+				iOffset = iFound + strPart.Length;
+				if(iOffset == strText.Length) return (i == (vPatternParts.Length - 1));
+			}
+
+			return true;
+		}
+#endif // !KeePassLibSD
 	}
 }

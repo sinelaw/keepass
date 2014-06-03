@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -44,18 +44,23 @@ namespace KeePass.Forms
 		public AboutForm()
 		{
 			InitializeComponent();
+			Program.Translation.ApplyTo(this);
 		}
 
 		private void OnFormLoad(object sender, EventArgs e)
 		{
 			GlobalWindowManager.AddWindow(this, this);
 
+			m_lblCopyright.Text = PwDefs.Copyright + ".";
+
 			string strTitle = PwDefs.ProductName;
 			string strDesc = KPRes.Version + " " + PwDefs.VersionString;
 
+			Icon icoNew = new Icon(Properties.Resources.KeePass, 48, 48);
+
 			m_bannerImage.Image = BannerFactory.CreateBanner(m_bannerImage.Width,
-				m_bannerImage.Height, BannerFactory.BannerStyle.Default,
-				Properties.Resources.B48x48_MessageBox_Info, strTitle, strDesc);
+				m_bannerImage.Height, BannerStyle.Default,
+				icoNew.ToBitmap(), strTitle, strDesc);
 			this.Icon = Properties.Resources.KeePass;
 
 			m_lvComponents.Columns.Add(KPRes.Components, 100, HorizontalAlignment.Left);
@@ -83,7 +88,7 @@ namespace KeePass.Forms
 				Kdb3Manager.LibraryBuild.ToString("X4") + ")");
 			m_lvComponents.Items.Add(lvi);
 
-			lvi = new ListViewItem(KPRes.XSLStylesheets);
+			lvi = new ListViewItem(KPRes.XslStylesheets);
 			string strPath = WinUtil.GetExecutable();
 			strPath = UrlUtil.GetFileDirectory(strPath, true);
 			bool bInstalled = File.Exists(strPath + AppDefs.XslFileHtmlLite);
@@ -97,27 +102,32 @@ namespace KeePass.Forms
 
 		private void OnLinkHomepage(object sender, LinkLabelLinkClickedEventArgs e)
 		{
-			WinUtil.OpenUrlInNewBrowser(PwDefs.HomepageUrl, null);
+			WinUtil.OpenUrl(PwDefs.HomepageUrl, null);
+			this.Close();
 		}
 
 		private void OnLinkHelpFile(object sender, LinkLabelLinkClickedEventArgs e)
 		{
 			AppHelp.ShowHelp(null, null);
+			this.Close();
 		}
 
 		private void OnLinkLicenseFile(object sender, LinkLabelLinkClickedEventArgs e)
 		{
 			AppHelp.ShowHelp(AppDefs.HelpTopics.License, null, true);
+			this.Close();
 		}
 
 		private void OnLinkAcknowledgements(object sender, LinkLabelLinkClickedEventArgs e)
 		{
 			AppHelp.ShowHelp(AppDefs.HelpTopics.Acknowledgements, null, true);
+			this.Close();
 		}
 
 		private void OnLinkDonate(object sender, LinkLabelLinkClickedEventArgs e)
 		{
-			WinUtil.OpenUrlInNewBrowser(PwDefs.DonationsUrl, null);
+			WinUtil.OpenUrl(PwDefs.DonationsUrl, null);
+			this.Close();
 		}
 	}
 }

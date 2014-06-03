@@ -1,6 +1,6 @@
 /*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2007 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2008 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,9 +21,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text;
 
 using KeePassLib.Interfaces;
 using KeePassLib.Security;
+using KeePassLib.Utility;
 
 #if KeePassLibSD
 using KeePassLibSD;
@@ -98,7 +100,7 @@ namespace KeePassLib.Collections
 		/// is <c>null</c>.</exception>
 		public ProtectedString Get(string strName)
 		{
-			Debug.Assert(strName != null); if(strName == null) throw new ArgumentNullException();
+			Debug.Assert(strName != null); if(strName == null) throw new ArgumentNullException("strName");
 
 			ProtectedString ps;
 			if(m_vStrings.TryGetValue(strName, out ps))
@@ -119,7 +121,7 @@ namespace KeePassLib.Collections
 		/// parameter is <c>null</c>.</exception>
 		public ProtectedString GetSafe(string strName)
 		{
-			Debug.Assert(strName != null); if(strName == null) throw new ArgumentNullException();
+			Debug.Assert(strName != null); if(strName == null) throw new ArgumentNullException("strName");
 
 			ProtectedString ps;
 			if(m_vStrings.TryGetValue(strName, out ps))
@@ -137,7 +139,7 @@ namespace KeePassLib.Collections
 		/// <paramref name="strName" /> is <c>null</c>.</exception>
 		public bool Exists(string strName)
 		{
-			Debug.Assert(strName != null); if(strName == null) throw new ArgumentNullException();
+			Debug.Assert(strName != null); if(strName == null) throw new ArgumentNullException("strName");
 
 			return m_vStrings.ContainsKey(strName);
 		}
@@ -153,13 +155,13 @@ namespace KeePassLib.Collections
 		/// parameter is <c>null</c>.</exception>
 		public string ReadSafe(string strName)
 		{
-			Debug.Assert(strName != null); if(strName == null) throw new ArgumentNullException();
+			Debug.Assert(strName != null); if(strName == null) throw new ArgumentNullException("strName");
 
 			ProtectedString ps;
 			if(m_vStrings.TryGetValue(strName, out ps))
 				return ps.ReadString();
 
-			return "";
+			return string.Empty;
 		}
 
 		/// <summary>
@@ -174,7 +176,7 @@ namespace KeePassLib.Collections
 		/// parameter is <c>null</c>.</exception>
 		public string ReadSafeEx(string strName)
 		{
-			Debug.Assert(strName != null); if(strName == null) throw new ArgumentNullException();
+			Debug.Assert(strName != null); if(strName == null) throw new ArgumentNullException("strName");
 
 			ProtectedString ps;
 			if(m_vStrings.TryGetValue(strName, out ps))
@@ -195,8 +197,8 @@ namespace KeePassLib.Collections
 		/// parameters is <c>null</c>.</exception>
 		public void Set(string strField, ProtectedString psNewValue)
 		{
-			Debug.Assert(strField != null); if(strField == null) throw new ArgumentNullException();
-			Debug.Assert(psNewValue != null); if(psNewValue == null) throw new ArgumentNullException();
+			Debug.Assert(strField != null); if(strField == null) throw new ArgumentNullException("strField");
+			Debug.Assert(psNewValue != null); if(psNewValue == null) throw new ArgumentNullException("psNewValue");
 
 			m_vStrings[strField] = psNewValue;
 		}
@@ -211,7 +213,7 @@ namespace KeePassLib.Collections
 		/// parameters is <c>null</c>.</exception>
 		public bool Remove(string strField)
 		{
-			Debug.Assert(strField != null); if(strField == null) throw new ArgumentNullException();
+			Debug.Assert(strField != null); if(strField == null) throw new ArgumentNullException("strField");
 
 			return m_vStrings.Remove(strField);
 		}
