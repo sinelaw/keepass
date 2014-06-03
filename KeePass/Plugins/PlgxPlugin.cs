@@ -105,11 +105,7 @@ namespace KeePass.Plugins
 			}
 			catch(Exception exLoad)
 			{
-				if(Program.CommandLineArgs[AppDefs.CommandLineOptions.Debug] != null)
-					MessageService.ShowWarningExcp(strFilePath, exLoad);
-				else
-					MessageService.ShowWarning(KPRes.PluginIncompatible +
-						MessageService.NewLine + strFilePath, KPRes.PluginUpdateHint);
+				PluginManager.ShowLoadError(strFilePath, exLoad, slStatus);
 			}
 		}
 
@@ -270,7 +266,7 @@ namespace KeePass.Plugins
 
 		private static string CreateTempDirectory()
 		{
-			string strTmpRoot = Path.GetTempPath();
+			string strTmpRoot = UrlUtil.GetTempPath();
 			strTmpRoot = UrlUtil.EnsureTerminatingSeparator(strTmpRoot, false);
 			strTmpRoot += (new PwUuid(true)).ToHexString();
 

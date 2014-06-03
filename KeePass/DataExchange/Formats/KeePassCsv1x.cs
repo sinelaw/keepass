@@ -1,4 +1,4 @@
-/*
+﻿/*
   KeePass Password Safe - The Open-Source Password Manager
   Copyright (C) 2003-2012 Dominik Reichl <dominik.reichl@t-online.de>
 
@@ -34,21 +34,21 @@ namespace KeePass.DataExchange.Formats
 {
 	internal sealed class KeePassCsv1x : FileFormatProvider
 	{
-		public override bool SupportsImport { get { return true; } }
+		public override bool SupportsImport { get { return false; } }
 		public override bool SupportsExport { get { return true; } }
 
 		public override string FormatName { get { return "KeePass CSV (1.x)"; } }
 		public override string DefaultExtension { get { return "csv"; } }
 		public override string ApplicationGroup { get { return PwDefs.ShortProductName; } }
 
-		public override bool ImportAppendsToRootGroupOnly { get { return true; } }
+		// public override bool ImportAppendsToRootGroupOnly { get { return true; } }
 
 		public override Image SmallIcon
 		{
 			get { return KeePass.Properties.Resources.B16x16_KeePass; }
 		}
 
-		public override void Import(PwDatabase pwStorage, Stream sInput,
+		/* public override void Import(PwDatabase pwStorage, Stream sInput,
 			IStatusLogger slLogger)
 		{
 			StreamReader sr = new StreamReader(sInput, Encoding.UTF8);
@@ -133,7 +133,7 @@ namespace KeePass.DataExchange.Formats
 			}
 
 			return sb.ToString();
-		}
+		} */
 
 		public override bool Export(PwExportInfo pwExportInfo, Stream sOutput,
 			IStatusLogger slLogger)
@@ -141,7 +141,7 @@ namespace KeePass.DataExchange.Formats
 			PwGroup pg = (pwExportInfo.DataGroup ?? ((pwExportInfo.ContextDatabase !=
 				null) ? pwExportInfo.ContextDatabase.RootGroup : null));
 
-			StreamWriter sw = new StreamWriter(sOutput, new UTF8Encoding(false));
+			StreamWriter sw = new StreamWriter(sOutput, StrUtil.Utf8);
 			sw.Write("\"Account\",\"Login Name\",\"Password\",\"Web Site\",\"Comments\"\r\n");
 
 			EntryHandler eh = delegate(PwEntry pe)
@@ -175,13 +175,15 @@ namespace KeePass.DataExchange.Formats
 			string strAppend)
 		{
 			string str = strText;
+			if(!string.IsNullOrEmpty(str))
+			{
+				str = str.Replace("\\", "\\\\");
+				str = str.Replace("\"", "\\\"");
 
-			str = str.Replace("\\", "\\\\");
-			str = str.Replace("\"", "\\\"");
+				sw.Write(str);
+			}
 
-			sw.Write(str);
-
-			if((strAppend != null) && (strAppend.Length > 0)) sw.Write(strAppend);
+			if(!string.IsNullOrEmpty(strAppend)) sw.Write(strAppend);
 		}
 	}
 }
