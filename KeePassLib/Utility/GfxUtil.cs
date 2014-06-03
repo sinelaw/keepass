@@ -1,6 +1,6 @@
 ﻿/*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2012 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2013 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,6 +29,14 @@ namespace KeePassLib.Utility
 {
 	public static class GfxUtil
 	{
+#if KeePassRT
+		public static Image LoadImage(byte[] pb)
+		{
+			MemoryStream ms = new MemoryStream(pb, false);
+			try { return Image.FromStream(ms); }
+			finally { ms.Close(); }
+		}
+#else
 		public static Image LoadImage(byte[] pb)
 		{
 			if(pb == null) throw new ArgumentNullException("pb");
@@ -54,20 +62,28 @@ namespace KeePassLib.Utility
 			{
 #if !KeePassLibSD
 				imgSrc = Image.FromStream(s);
-				Image img = new Bitmap(imgSrc.Width, imgSrc.Height,
+				Bitmap bmp = new Bitmap(imgSrc.Width, imgSrc.Height,
 					PixelFormat.Format32bppArgb);
+
+				try
+				{
+					bmp.SetResolution(imgSrc.HorizontalResolution,
+						imgSrc.VerticalResolution);
+					Debug.Assert(bmp.Size == imgSrc.Size);
+				}
+				catch(Exception) { Debug.Assert(false); }
 #else
 				imgSrc = new Bitmap(s);
-				Image img = new Bitmap(imgSrc.Width, imgSrc.Height);
+				Bitmap bmp = new Bitmap(imgSrc.Width, imgSrc.Height);
 #endif
 
-				using(Graphics g = Graphics.FromImage(img))
+				using(Graphics g = Graphics.FromImage(bmp))
 				{
 					g.Clear(Color.Transparent);
 					g.DrawImage(imgSrc, 0, 0);
 				}
 
-				return img;
+				return bmp;
 			}
 			finally { if(imgSrc != null) imgSrc.Dispose(); }
 		}
@@ -83,5 +99,6 @@ namespace KeePassLib.Utility
 
 			return null;
 		}
+#endif
 	}
 }

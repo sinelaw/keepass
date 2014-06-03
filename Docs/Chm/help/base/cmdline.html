@@ -20,7 +20,7 @@
 	<meta name="DC.Format" content="text/html" />
 	<meta name="DC.Identifier" content="http://keepass.info/" />
 	<meta name="DC.Language" content="en" />
-	<meta name="DC.Rights" content="Copyright (c) 2003-2012 Dominik Reichl" />
+	<meta name="DC.Rights" content="Copyright (c) 2003-2013 Dominik Reichl" />
 
 	<title>Command Line Options - KeePass</title>
 	<base target="_self" />
@@ -64,8 +64,8 @@ example: <code>-pw:&quot;my secret password&quot;</code>.</p>
 security reasons (the operating system allows reading the command line
 options of other applications).</p>
 
-<p>When passing the <code>-pw-stdin</code> option, KeePass &ge; 1.24 and &ge; 2.20
-read the password from the StdIn stream.</p>
+<p>When passing the <code>-pw-stdin</code> option, KeePass
+reads the password from the StdIn stream.</p>
 
 <p><b>Key file.</b>
 For supplying the key file location, the <code>-keyfile:</code> switch
@@ -117,7 +117,10 @@ placeholder.<br />
 <br />
 The <code>-entry-url-open</code> option makes other KeePass instances
 search for an entry and open its URL. The entry is identified by its UUID,
-which you can pass as <code>-uuid:</code> command line parameter.
+which you can pass as <code>-uuid:</code> command line parameter.<br />
+<br />
+Analogously to the <code>-auto-type</code> option, <code>-auto-type-selected</code>
+performs auto-type for the currently selected entry.
 
 
 <p>The order of the arguments is arbitrary.</p>

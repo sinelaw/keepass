@@ -1,6 +1,6 @@
 ﻿/*
   KeePass Password Safe - The Open-Source Password Manager
-  Copyright (C) 2003-2012 Dominik Reichl <dominik.reichl@t-online.de>
+  Copyright (C) 2003-2013 Dominik Reichl <dominik.reichl@t-online.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -174,6 +174,12 @@ namespace KeePass.Native
 		internal static void SetWmClass(Form f, string strName, string strClass)
 		{
 			if(f == null) { Debug.Assert(false); return; }
+
+			// The following crashes under Mac OS X (SIGSEGV in native code,
+			// not just an exception), thus skip it when we're on Mac OS X
+			// https://sourceforge.net/projects/keepass/forums/forum/329221/topic/5860588
+			if(KeeNativeLib.NativeLib.GetPlatformID() == PlatformID.MacOSX)
+				return;
 
 			try
 			{
